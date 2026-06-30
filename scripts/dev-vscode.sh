@@ -53,12 +53,35 @@ cat >"$SETTINGS_DIR/settings.json" <<JSON
   "unikodo.enabledSchemes": ["unicode-math", "ascii"],
   "unikodo.includeAscii": false,
   "unikodo.languages": ["*"],
+  "editor.mouseWheelZoom": true,
   "telemetry.telemetryLevel": "off",
   "update.mode": "none",
   "extensions.autoCheckUpdates": false,
   "workbench.startupEditor": "none",
   "window.title": "unikodo dev host"
 }
+JSON
+
+# Zoom only the editor (buffer) font, never the whole UI:
+#   Ctrl+scroll    -> editor.mouseWheelZoom (set above)
+#   Ctrl + / - / 0 -> editor font zoom in/out/reset (rebound from the default UI zoom)
+cat >"$SETTINGS_DIR/keybindings.json" <<'JSON'
+[
+  { "key": "ctrl+=",               "command": "editor.action.fontZoomIn" },
+  { "key": "ctrl+shift+=",         "command": "editor.action.fontZoomIn" },
+  { "key": "ctrl+numpad_add",      "command": "editor.action.fontZoomIn" },
+  { "key": "ctrl+-",               "command": "editor.action.fontZoomOut" },
+  { "key": "ctrl+numpad_subtract", "command": "editor.action.fontZoomOut" },
+  { "key": "ctrl+0",               "command": "editor.action.fontZoomReset" },
+  { "key": "ctrl+numpad0",         "command": "editor.action.fontZoomReset" },
+  { "key": "ctrl+=",               "command": "-workbench.action.zoomIn" },
+  { "key": "ctrl+shift+=",         "command": "-workbench.action.zoomIn" },
+  { "key": "ctrl+numpad_add",      "command": "-workbench.action.zoomIn" },
+  { "key": "ctrl+-",               "command": "-workbench.action.zoomOut" },
+  { "key": "ctrl+numpad_subtract", "command": "-workbench.action.zoomOut" },
+  { "key": "ctrl+0",               "command": "-workbench.action.zoomReset" },
+  { "key": "ctrl+numpad0",         "command": "-workbench.action.zoomReset" }
+]
 JSON
 
 # Playground file — created once, so your edits survive re-runs.
