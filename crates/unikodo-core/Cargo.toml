@@ -9,7 +9,7 @@ authors.workspace = true
 rust-version.workspace = true
 
 # The symbol table is embedded at compile time; keep it in the published package.
-include = ["src/**/*.rs", "data/unicode-math-table.tex", "data/README.md"]
+include = ["src/**/*.rs", "data/*.tex", "data/*.tsv", "data/README.md"]
 
 [dependencies]
 # Typst symbol names (the `sym` module). Apache-2.0; the `numeral-systems` and

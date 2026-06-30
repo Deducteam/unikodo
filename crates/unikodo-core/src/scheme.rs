@@ -1,11 +1,11 @@
 //! Naming schemes: the different vocabularies a user can type to insert a symbol.
 //!
-//! unikodo is designed around *multiple* naming schemes. `unicode-math` macros
-//! are one; ASCII digraphs (`=>` → `⇒`) are another; Typst's `sym` names
-//! (`arrow.r.double` → `⇒`) are a third. Each scheme has its own data (tagged
-//! onto every [`Symbol`]) and a [`Trigger`] describing how its names are typed,
-//! which editor integrations use to decide when to offer completions and what
-//! text to replace.
+//! unikodo is designed around *multiple* naming schemes. Several are LaTeX-style
+//! macros typed after a backslash (`unicode-math`, `latex`, `lean`, `rocq`,
+//! `typst`); `ascii` digraphs (`=>` → `⇒`) are typed inline. Each scheme has its
+//! own data (tagged onto every [`Symbol`]) and a [`Trigger`] describing how its
+//! names are typed, which editor integrations use to decide when to offer
+//! completions and what text to replace.
 //!
 //! [`Symbol`]: crate::Symbol
 
@@ -38,16 +38,40 @@ pub struct SchemeInfo {
 
 /// `unicode-math` macro names without the backslash, e.g. `leq`, `mupalpha`.
 pub const UNICODE_MATH: &str = "unicode-math";
-/// ASCII digraphs, e.g. `=>`, `->`, `<=`.
-pub const ASCII: &str = "ascii";
+/// Conventional LaTeX + AMS macro names, e.g. `alpha`, `leq`, `subseteq`.
+pub const LATEX: &str = "latex";
+/// Lean 4 unicode-input abbreviations, e.g. `nat`, `to`, `alpha`.
+pub const LEAN: &str = "lean";
+/// RocqIDE unicode bindings, e.g. `forall`, `alpha`, `to`.
+pub const ROCQ: &str = "rocq";
 /// Typst `sym` names, e.g. `arrow.r.double`, `alpha`, `eq.not`.
 pub const TYPST: &str = "typst";
+/// ASCII digraphs, e.g. `=>`, `->`, `<=`.
+pub const ASCII: &str = "ascii";
 
 const SCHEMES: &[SchemeInfo] = &[
     SchemeInfo {
         id: UNICODE_MATH,
         display: "unicode-math",
         description: "LaTeX unicode-math macros, typed after a backslash (e.g. \\leq).",
+        trigger: Trigger::Prefix("\\"),
+    },
+    SchemeInfo {
+        id: LATEX,
+        display: "LaTeX",
+        description: "Conventional LaTeX + AMS macros (e.g. \\alpha, \\leq).",
+        trigger: Trigger::Prefix("\\"),
+    },
+    SchemeInfo {
+        id: LEAN,
+        display: "Lean",
+        description: "Lean 4 unicode-input abbreviations (e.g. \\nat, \\to).",
+        trigger: Trigger::Prefix("\\"),
+    },
+    SchemeInfo {
+        id: ROCQ,
+        display: "Rocq",
+        description: "RocqIDE unicode bindings (e.g. \\forall, \\alpha).",
         trigger: Trigger::Prefix("\\"),
     },
     SchemeInfo {
