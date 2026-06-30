@@ -51,12 +51,17 @@ can type for the same characters — and lets you choose which are active:
 
 | Scheme | Trigger | Examples |
 | --- | --- | --- |
-| `unicode-math` | backslash prefix | `\leq` → `≤`, `\BbbR` → `ℝ` |
+| `unicode-math` | prefix (default `\`) | `\leq` → `≤`, `\BbbR` → `ℝ` |
+| `typst` | prefix (default `\`) | `\arrow.r.double` → `⇒`, `\alpha` → `α`, `\eq.not` → `≠` |
 | `ascii` | inline digraph | `=>` → `⇒`, `->` → `→`, `<=` → `≤` |
 
-More schemes (e.g. Typst names) can be added the same way: a name→character
-table tagged with the scheme's id plus a trigger model (backslash prefix or
-inline operator). The `ascii` set is currently a small starter list.
+The `typst` scheme uses [Typst](https://typst.app)'s `sym` names (via the
+[`codex`](https://crates.io/crates/codex) crate) — dotted, order-independent
+modifiers like `arrow.r.double`. It complements unicode-math nicely (e.g. plain
+`\alpha`, which unicode-math lacks). The `ascii` set is a small starter list.
+Prefix schemes share the `\` trigger by default, but each prefix is configurable.
+Adding a scheme is just a name→character source tagged with a scheme id plus a
+trigger model (prefix or inline operator).
 
 ## Configuration
 
@@ -65,12 +70,14 @@ Settings reach the server via `initializationOptions`, and live updates via
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `enabledSchemes` | `["unicode-math"]` | Which schemes to offer. `ascii` is opt-in (it registers many trigger characters). |
-| `includeAscii` | `false` | Also offer names whose target character is ASCII. |
+| `enabledSchemes` | `["unicode-math"]` | Which schemes to offer, e.g. `["unicode-math", "typst"]`. `ascii` is opt-in (it registers many trigger characters). |
+| `includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
+| `prefixes` | `{}` | Per-scheme prefix overrides, e.g. `{"typst": ";"}`. Prefix schemes default to `\`. |
 
-In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii`. In **Zed**,
-put them under `lsp.unikodo.initialization_options` in your settings. For a raw
-LSP client, pass them as `initializationOptions` at initialize.
+In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii` /
+`unikodo.prefixes`. In **Zed**, put them under `lsp.unikodo.initialization_options`
+in your settings. For a raw LSP client, pass them as `initializationOptions` at
+initialize.
 
 ## Build
 
@@ -118,10 +125,11 @@ cargo test -p unikodo-core             # validate (adjust the count test if need
 ## Status
 
 Early stage. Working today: the scheme-aware symbol database and an LSP server
-serving completions across configurable naming schemes (unicode-math macros and
-ASCII digraphs), plus VSCode and Zed extension shims. Natural next steps include
-more schemes (Typst names, familiar aliases like `\alpha`), description/fuzzy
-search, and prebuilt server binaries for the extensions to download.
+serving completions across configurable naming schemes — **unicode-math** macros,
+**Typst** `sym` names, and **ASCII** digraphs — plus VSCode and Zed extension
+shims. Natural next steps include familiar aliases (`\alpha` for α via a dedicated
+scheme), description/fuzzy search, and prebuilt server binaries for the
+extensions to download.
 
 ## Licensing
 

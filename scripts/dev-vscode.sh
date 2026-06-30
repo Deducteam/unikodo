@@ -50,7 +50,7 @@ mkdir -p "$SETTINGS_DIR" "$SCRATCH_DIR"
 cat >"$SETTINGS_DIR/settings.json" <<JSON
 {
   "unikodo.serverPath": "$SERVER",
-  "unikodo.enabledSchemes": ["unicode-math", "ascii"],
+  "unikodo.enabledSchemes": ["unicode-math", "typst", "ascii"],
   "unikodo.includeAscii": false,
   "unikodo.languages": ["*"],
   "editor.mouseWheelZoom": true,
@@ -95,6 +95,12 @@ unicode-math (type a backslash, then the macro):
   \BbbR        ->  ℝ
   \rightarrow  ->  →
   \mupalpha    ->  α
+
+typst sym names (also a backslash here; dotted, order-independent modifiers):
+  \alpha           ->  α
+  \arrow.r.double  ->  ⇒
+  \eq.not          ->  ≠
+  \lt.eq           ->  ≤
 
 ascii digraphs (this profile enables the "ascii" scheme):
   =>   ->  ⇒

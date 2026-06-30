@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
+use codex::Def;
+
 use crate::scheme;
 use crate::symbol::Symbol;
 
@@ -11,8 +13,7 @@ const TABLE: &str = include_str!("../data/unicode-math-table.tex");
 /// Starter set of ASCII digraph aliases: `(name, character, description)`.
 ///
 /// These map punctuation sequences to the non-ASCII characters they evoke. It is
-/// deliberately small and uncontroversial; richer/Typst schemes can be added the
-/// same way (their own table tagged with their scheme id).
+/// deliberately small and uncontroversial.
 const ASCII_ALIASES: &[(&str, char, &str)] = &[
     ("->", '→', "rightwards arrow"),
     ("<-", '←', "leftwards arrow"),
@@ -30,9 +31,9 @@ const ASCII_ALIASES: &[(&str, char, &str)] = &[
 
 /// All symbols across every built-in scheme.
 ///
-/// Parsed once, on first access, and cached for the lifetime of the program.
-/// `unicode-math` entries appear first (in table order), then the ASCII aliases.
-/// Each [`Symbol`] is tagged with its [`scheme`](crate::scheme).
+/// Parsed once, on first access, and cached for the lifetime of the program:
+/// `unicode-math` (in table order), then the ASCII aliases, then Typst's `sym`
+/// names. Each [`Symbol`] is tagged with its [`scheme`](crate::scheme).
 pub fn symbols() -> &'static [Symbol] {
     static SYMBOLS: OnceLock<Vec<Symbol>> = OnceLock::new();
     SYMBOLS
@@ -40,11 +41,12 @@ pub fn symbols() -> &'static [Symbol] {
             let mut all: Vec<Symbol> = TABLE.lines().filter_map(parse_line).collect();
             all.extend(ASCII_ALIASES.iter().map(|&(name, ch, description)| Symbol {
                 scheme: scheme::ASCII,
-                name,
-                ch,
+                name: name.to_string(),
+                value: ch.to_string(),
                 class: None,
                 description,
             }));
+            collect_typst(&mut all);
             all
         })
         .as_slice()
@@ -52,9 +54,10 @@ pub fn symbols() -> &'static [Symbol] {
 
 /// Completion candidates within a single scheme for the given `query` — the
 /// already-extracted name fragment, without any trigger prefix. Matches names in
-/// `scheme_id` that start with `query`, preserving table order.
+/// `scheme_id` that start with `query`, preserving insertion order.
 ///
-/// When `include_ascii` is `false`, symbols whose character is ASCII are skipped.
+/// When `include_ascii` is `false`, symbols whose value is a single ASCII
+/// character are skipped.
 pub fn complete_in<'a>(
     scheme_id: &'a str,
     query: &'a str,
@@ -96,8 +99,8 @@ fn parse_line(line: &'static str) -> Option<Symbol> {
 
     Some(Symbol {
         scheme: scheme::UNICODE_MATH,
-        name,
-        ch,
+        name: name.to_string(),
+        value: ch.to_string(),
         class: Some(class),
         description,
     })
@@ -107,6 +110,53 @@ fn parse_line(line: &'static str) -> Option<Symbol> {
 /// the remainder after the closing brace.
 fn field(s: &str) -> Option<(&str, &str)> {
     s.strip_prefix('{')?.split_once('}')
+}
+
+/// Walk Typst's `sym` module (from the `codex` crate) and push one [`Symbol`] per
+/// non-deprecated variant. Names are the dotted module/symbol/modifier paths,
+/// e.g. `arrow.r.double`.
+fn collect_typst(out: &mut Vec<Symbol>) {
+    fn walk(module: codex::Module, path: &str, out: &mut Vec<Symbol>) {
+        for (name, binding) in module.iter() {
+            if binding.deprecation.is_some() {
+                continue;
+            }
+            let base = if path.is_empty() {
+                name.to_string()
+            } else {
+                format!("{path}.{name}")
+            };
+            match binding.def {
+                Def::Module(sub) => walk(sub, &base, out),
+                Def::Symbol(symbol) => {
+                    for (modifiers, value, deprecation) in symbol.variants() {
+                        if deprecation.is_some() {
+                            continue;
+                        }
+                        let mods = modifiers.as_str();
+                        let full = if mods.is_empty() {
+                            base.clone()
+                        } else {
+                            format!("{base}.{mods}")
+                        };
+                        out.push(Symbol {
+                            scheme: scheme::TYPST,
+                            name: full,
+                            value: value.to_string(),
+                            class: None,
+                            description: "",
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(binding) = codex::ROOT.get("sym") {
+        if let Def::Module(module) = binding.def {
+            walk(module, "", out);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -120,65 +170,90 @@ mod tests {
             .unwrap_or_else(|| panic!("expected symbol `{scheme_id}:{name}` to exist"))
     }
 
+    fn count(scheme_id: &str) -> usize {
+        symbols().iter().filter(|s| s.scheme == scheme_id).count()
+    }
+
     #[test]
     fn parses_every_macro_line() {
         let macro_lines = TABLE
             .lines()
             .filter(|l| l.starts_with("\\UnicodeMathSymbol"))
             .count();
-        let parsed = symbols()
-            .iter()
-            .filter(|s| s.scheme == scheme::UNICODE_MATH)
-            .count();
-        assert_eq!(parsed, macro_lines);
+        assert_eq!(count(scheme::UNICODE_MATH), macro_lines);
     }
 
     #[test]
     fn unicode_math_snapshot_count() {
         // Tracks the vendored table; bump intentionally on update.
-        let count = symbols()
-            .iter()
-            .filter(|s| s.scheme == scheme::UNICODE_MATH)
-            .count();
-        assert_eq!(count, 2448);
+        assert_eq!(count(scheme::UNICODE_MATH), 2448);
     }
 
     #[test]
     fn known_unicode_math_symbols() {
         let leq = find(scheme::UNICODE_MATH, "leq");
-        assert_eq!(leq.ch, '≤');
-        assert_eq!(leq.codepoint(), 0x2264);
-        assert_eq!(leq.usv(), "U+2264");
+        assert_eq!(leq.value, "≤");
+        assert_eq!(leq.codepoint(), Some(0x2264));
+        assert_eq!(leq.usv().as_deref(), Some("U+2264"));
         assert_eq!(leq.class, Some("mathrel"));
 
-        assert_eq!(find(scheme::UNICODE_MATH, "lparen").ch, '(');
-        assert_eq!(find(scheme::UNICODE_MATH, "BbbR").ch, 'ℝ');
-        assert_eq!(find(scheme::UNICODE_MATH, "mupalpha").ch, 'α');
+        assert_eq!(find(scheme::UNICODE_MATH, "lparen").value, "(");
+        assert_eq!(find(scheme::UNICODE_MATH, "BbbR").value, "ℝ");
+        assert_eq!(find(scheme::UNICODE_MATH, "mupalpha").value, "α");
     }
 
     #[test]
     fn ascii_aliases_present() {
         let arrow = find(scheme::ASCII, "=>");
-        assert_eq!(arrow.ch, '⇒');
+        assert_eq!(arrow.value, "⇒");
         assert_eq!(arrow.class, None);
-        assert_eq!(find(scheme::ASCII, "->").ch, '→');
+        assert_eq!(find(scheme::ASCII, "->").value, "→");
     }
 
     #[test]
-    fn names_are_trimmed_and_nonempty() {
-        assert!(symbols().iter().all(|s| s.name == s.name.trim()));
+    fn typst_symbols_present() {
+        assert!(count(scheme::TYPST) > 1000);
+        assert_eq!(find(scheme::TYPST, "alpha").value, "α");
+        assert_eq!(find(scheme::TYPST, "Alpha").value, "Α");
+        assert_eq!(find(scheme::TYPST, "arrow.r").value, "→");
+        assert_eq!(find(scheme::TYPST, "arrow.r.double").value, "⇒");
+        assert_eq!(find(scheme::TYPST, "eq.not").value, "≠");
+        assert_eq!(find(scheme::TYPST, "lt.eq").value, "≤");
+        assert_eq!(find(scheme::TYPST, "alpha").class, None);
+    }
+
+    #[test]
+    fn typst_has_variation_selector_values() {
+        // arrow.l.r is "↔" + a text-presentation variation selector (2 chars).
+        let lr = find(scheme::TYPST, "arrow.l.r");
+        assert!(lr.value.chars().count() >= 2);
+        assert!(lr.single_char().is_none());
+        assert!(!lr.is_ascii());
+    }
+
+    #[test]
+    fn names_and_values_nonempty() {
         assert!(symbols().iter().all(|s| !s.name.is_empty()));
+        assert!(symbols().iter().all(|s| !s.value.is_empty()));
+        assert!(symbols().iter().all(|s| s.name == s.name.trim()));
     }
 
     #[test]
     fn complete_in_filters_by_scheme_and_prefix() {
         let names: Vec<_> = complete_in(scheme::UNICODE_MATH, "leq", false)
-            .map(|s| s.name)
+            .map(|s| s.name.as_str())
             .collect();
         assert!(names.contains(&"leq"));
         assert!(names.iter().all(|n| n.starts_with("leq")));
         assert!(complete_in(scheme::UNICODE_MATH, "leq", false)
             .all(|s| s.scheme == scheme::UNICODE_MATH));
+
+        // Typst dotted prefix matching.
+        let typst: Vec<_> = complete_in(scheme::TYPST, "arrow.r", false)
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(typst.contains(&"arrow.r.double"));
+        assert!(typst.iter().all(|n| n.starts_with("arrow.r")));
     }
 
     #[test]

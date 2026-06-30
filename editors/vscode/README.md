@@ -38,9 +38,10 @@ Development Host.
 
 ## Usage
 
-Type a backslash followed by a `unicode-math` macro name — e.g. `\leq`, `\BbbR`,
-`\rightarrow` — and accept the completion to insert the character (`≤`, `ℝ`, `→`).
-Enable the `ascii` scheme to also get inline digraphs like `=>` → `⇒`.
+Type a backslash followed by a name and accept the completion to insert the
+character: `unicode-math` macros (`\leq` → `≤`, `\BbbR` → `ℝ`) or, with the
+`typst` scheme enabled, Typst `sym` names (`\arrow.r.double` → `⇒`, `\alpha` →
+`α`). Enable the `ascii` scheme for inline digraphs like `=>` → `⇒`.
 
 ## Settings
 
@@ -48,5 +49,6 @@ Enable the `ascii` scheme to also get inline digraphs like `=>` → `⇒`.
 | --- | --- | --- |
 | `unikodo.serverPath` | `unikodo-lsp` | Path to the language server binary. |
 | `unikodo.languages` | `["*"]` | Language IDs to enable completions for; `["*"]` means all files. |
-| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `ascii`. |
-| `unikodo.includeAscii` | `false` | Also offer names whose target character is ASCII. |
+| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `typst`, `ascii`. |
+| `unikodo.includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
+| `unikodo.prefixes` | `{}` | Per-scheme prefix overrides, e.g. `{"typst": ";"}`. |

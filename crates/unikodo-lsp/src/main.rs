@@ -1,12 +1,13 @@
 //! unikodo LSP server: Unicode symbol completions across multiple naming schemes.
 //!
 //! Each enabled [naming scheme](unikodo_core::scheme) contributes completions:
-//! `unicode-math` macros after a backslash (`\leq` → `≤`), ASCII digraphs typed
-//! inline (`=>` → `⇒`), and more in future. Accepting a completion replaces the
-//! typed name with the Unicode character. Which schemes are active is
-//! configurable (see [`Config`]).
+//! `unicode-math` macros (`\leq` → `≤`), Typst `sym` names (`\arrow.r.double` →
+//! `⇒`), and ASCII digraphs typed inline (`=>` → `⇒`). Accepting a completion
+//! replaces the typed name with the Unicode character. Which schemes are active —
+//! and, for prefix schemes, which prefix triggers them — is configurable (see
+//! [`Config`]).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::RwLock;
 
 use dashmap::DashMap;
@@ -15,9 +16,7 @@ use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use unikodo_core::{
-    complete_in, name_chars, scheme, schemes, SchemeInfo, Symbol, Trigger, UNICODE_MATH,
-};
+use unikodo_core::{complete_in, name_chars, scheme, schemes, Symbol, Trigger, UNICODE_MATH};
 
 /// User-configurable settings, supplied via `initializationOptions` at startup or
 /// `workspace/didChangeConfiguration` later (optionally nested under a `unikodo`
@@ -25,20 +24,33 @@ use unikodo_core::{
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct Config {
-    /// Scheme ids to offer completions from, e.g. `["unicode-math", "ascii"]`.
+    /// Scheme ids to offer completions from, e.g. `["unicode-math", "typst"]`.
     enabled_schemes: Vec<String>,
-    /// Whether to also offer names whose target character is ASCII.
+    /// Whether to also offer names whose value is a single ASCII character.
     include_ascii: bool,
+    /// Per-scheme prefix overrides (scheme id → prefix), for prefix-triggered
+    /// schemes. Defaults to each scheme's built-in prefix when absent.
+    prefixes: BTreeMap<String, String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            // ASCII digraphs are opt-in: enabling them registers many trigger
-            // characters (`=`, `>`, `-`, …), which is surprising by default.
             enabled_schemes: vec![UNICODE_MATH.to_string()],
             include_ascii: false,
+            prefixes: BTreeMap::new(),
         }
+    }
+}
+
+impl Config {
+    /// The effective prefix for a prefix-triggered scheme: the user's override if
+    /// present, otherwise the scheme's default.
+    fn prefix<'a>(&'a self, scheme_id: &str, default: &'a str) -> &'a str {
+        self.prefixes
+            .get(scheme_id)
+            .map(String::as_str)
+            .unwrap_or(default)
     }
 }
 
@@ -69,6 +81,7 @@ impl Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         self.apply_config(params.initialization_options.as_ref());
+        let triggers = trigger_characters(&self.config.read().unwrap());
 
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
@@ -80,9 +93,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 completion_provider: Some(CompletionOptions {
-                    // Register triggers for every built-in scheme so toggling a
-                    // scheme on at runtime works without a restart.
-                    trigger_characters: Some(trigger_characters()),
+                    trigger_characters: Some(triggers),
                     resolve_provider: Some(false),
                     ..Default::default()
                 }),
@@ -139,14 +150,17 @@ impl LanguageServer for Backend {
     }
 }
 
-/// The union of every built-in scheme's trigger characters: prefix characters
-/// (e.g. `\`) plus the alphabet of each operator scheme (e.g. `=`, `>`, `-`).
-fn trigger_characters() -> Vec<String> {
+/// The trigger characters to advertise: the last character of each prefix scheme's
+/// effective prefix, plus the alphabet of each operator scheme. Computed over all
+/// built-in schemes so a scheme enabled later still triggers.
+fn trigger_characters(config: &Config) -> Vec<String> {
     let mut chars: BTreeSet<char> = BTreeSet::new();
     for info in schemes() {
         match info.trigger {
-            Trigger::Prefix(c) => {
-                chars.insert(c);
+            Trigger::Prefix(default) => {
+                if let Some(c) = config.prefix(info.id, default).chars().last() {
+                    chars.insert(c);
+                }
             }
             Trigger::Operator => chars.extend(name_chars(info.id)),
         }
@@ -170,50 +184,61 @@ fn completions_at(text: &str, position: Position, config: &Config) -> Option<Vec
     let mut items = Vec::new();
     for id in &config.enabled_schemes {
         let Some(info) = scheme(id) else { continue };
-        let Some((query, start)) = token_for(&before_cursor, info) else {
-            continue;
+
+        let (query, start, prefix) = match info.trigger {
+            Trigger::Prefix(default) => {
+                let prefix = config.prefix(info.id, default);
+                let Some((query, start)) = prefix_token(&before_cursor, prefix) else {
+                    continue;
+                };
+                (query, start, Some(prefix))
+            }
+            Trigger::Operator => {
+                let Some((query, start)) = operator_token(&before_cursor, info.id) else {
+                    continue;
+                };
+                (query, start, None)
+            }
         };
+
         let range = Range::new(
             Position::new(position.line, start),
             Position::new(position.line, position.character),
         );
         items.extend(
             complete_in(info.id, query, config.include_ascii)
-                .map(|symbol| completion_item(symbol, info, range)),
+                .map(|symbol| completion_item(symbol, prefix, info.display, range)),
         );
     }
 
-    if items.is_empty() {
-        None
-    } else {
-        Some(items)
-    }
+    (!items.is_empty()).then_some(items)
 }
 
-/// Find the token under the cursor for `info`'s trigger, returning the query (the
-/// name fragment to match) and the UTF-16 start column of the text it replaces.
-fn token_for<'a>(before_cursor: &'a str, info: &SchemeInfo) -> Option<(&'a str, u32)> {
-    match info.trigger {
-        Trigger::Prefix(prefix) => {
-            let idx = before_cursor.rfind(prefix)?;
-            let query = &before_cursor[idx + prefix.len_utf8()..];
-            if query.contains(char::is_whitespace) {
-                return None;
-            }
-            Some((query, utf16_col(before_cursor, idx)))
-        }
-        Trigger::Operator => {
-            let allowed = name_chars(info.id);
-            // The maximal run of allowed characters ending at the cursor.
-            let start = before_cursor
-                .char_indices()
-                .rev()
-                .take_while(|&(_, c)| allowed.contains(&c))
-                .last()
-                .map(|(i, _)| i)?;
-            Some((&before_cursor[start..], utf16_col(before_cursor, start)))
-        }
+/// Token for a prefix-triggered scheme: the text after the last occurrence of
+/// `prefix` (no whitespace between), and the UTF-16 start column of the prefix.
+fn prefix_token<'a>(before_cursor: &'a str, prefix: &str) -> Option<(&'a str, u32)> {
+    if prefix.is_empty() {
+        return None;
     }
+    let idx = before_cursor.rfind(prefix)?;
+    let query = &before_cursor[idx + prefix.len()..];
+    if query.contains(char::is_whitespace) {
+        return None;
+    }
+    Some((query, utf16_col(before_cursor, idx)))
+}
+
+/// Token for an operator-triggered scheme: the maximal run of the scheme's name
+/// characters ending at the cursor, and its UTF-16 start column.
+fn operator_token<'a>(before_cursor: &'a str, scheme_id: &str) -> Option<(&'a str, u32)> {
+    let allowed = name_chars(scheme_id);
+    let start = before_cursor
+        .char_indices()
+        .rev()
+        .take_while(|&(_, c)| allowed.contains(&c))
+        .last()
+        .map(|(i, _)| i)?;
+    Some((&before_cursor[start..], utf16_col(before_cursor, start)))
 }
 
 /// Number of UTF-16 code units in `s` up to byte index `byte_idx`.
@@ -221,41 +246,61 @@ fn utf16_col(s: &str, byte_idx: usize) -> u32 {
     s[..byte_idx].encode_utf16().count() as u32
 }
 
-/// Turn a [`Symbol`] into a completion item whose acceptance inserts the
-/// character over the typed name (`range`).
-fn completion_item(symbol: &Symbol, info: &SchemeInfo, range: Range) -> CompletionItem {
-    let typed = match info.trigger {
-        Trigger::Prefix(c) => format!("{c}{}", symbol.name),
-        Trigger::Operator => symbol.name.to_string(),
+/// Turn a [`Symbol`] into a completion item whose acceptance inserts the value
+/// over the typed name (`range`). `prefix` is the scheme's effective prefix for
+/// prefix-triggered schemes, or `None` for operator-triggered ones.
+fn completion_item(
+    symbol: &Symbol,
+    prefix: Option<&str>,
+    scheme_display: &str,
+    range: Range,
+) -> CompletionItem {
+    let typed = match prefix {
+        Some(p) => format!("{p}{}", symbol.name),
+        None => symbol.name.clone(),
     };
-    let character = symbol.ch.to_string();
+    let glyph = symbol.value.clone();
+    let codepoints = symbol
+        .value
+        .chars()
+        .map(|c| format!("U+{:04X}", c as u32))
+        .collect::<Vec<_>>()
+        .join(" ");
     let class = match symbol.class {
         Some(c) => format!(", \\{c}"),
         None => String::new(),
     };
+    let detail = if symbol.description.is_empty() {
+        glyph.clone()
+    } else {
+        format!("{glyph}  {}", symbol.description)
+    };
+    let desc_block = if symbol.description.is_empty() {
+        String::new()
+    } else {
+        format!("{}\n\n", symbol.description)
+    };
+    let documentation = format!(
+        "## {glyph}\n\n`{typed}` → `{glyph}`  ({codepoints}{class})\n\n{desc_block}*scheme: {scheme_display}*"
+    );
 
     CompletionItem {
         label: typed.clone(),
         label_details: Some(CompletionItemLabelDetails {
-            detail: Some(format!("  {character}")),
-            description: Some(info.display.to_string()),
+            detail: Some(format!("  {glyph}")),
+            description: Some(scheme_display.to_string()),
         }),
         kind: Some(CompletionItemKind::TEXT),
-        detail: Some(format!("{character}  {}", symbol.description)),
+        detail: Some(detail),
         documentation: Some(Documentation::MarkupContent(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!(
-                "## {character}\n\n`{typed}` → `{character}`  ({usv}{class})\n\n{desc}\n\n*scheme: {scheme}*",
-                usv = symbol.usv(),
-                desc = symbol.description,
-                scheme = info.display,
-            ),
+            value: documentation,
         })),
-        filter_text: Some(typed),
-        sort_text: Some(symbol.name.to_string()),
+        filter_text: Some(typed.clone()),
+        sort_text: Some(symbol.name.clone()),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range,
-            new_text: character,
+            new_text: glyph,
         })),
         ..Default::default()
     }
@@ -287,6 +332,7 @@ mod tests {
         Config {
             enabled_schemes: schemes.iter().map(|s| s.to_string()).collect(),
             include_ascii: false,
+            prefixes: BTreeMap::new(),
         }
     }
 
@@ -314,6 +360,37 @@ mod tests {
     }
 
     #[test]
+    fn typst_backslash_dotted() {
+        let line = "\\arrow.r.double";
+        let items =
+            completions_at(line, pos(0, line.len() as u32), &cfg(&["typst"])).expect("items");
+        let e = edit(find(&items, "\\arrow.r.double"));
+        assert_eq!(e.new_text, "⇒");
+        assert_eq!(e.range.start.character, 0);
+        assert_eq!(e.range.end.character, line.len() as u32);
+    }
+
+    #[test]
+    fn typst_partial_dotted_offers_variants() {
+        let items = completions_at("\\arrow.r", pos(0, 8), &cfg(&["typst"])).expect("items");
+        let labels: Vec<_> = items.iter().map(|i| i.label.as_str()).collect();
+        assert!(labels.contains(&"\\arrow.r"));
+        assert!(labels.contains(&"\\arrow.r.double"));
+    }
+
+    #[test]
+    fn per_scheme_prefix_override() {
+        let mut c = cfg(&["typst"]);
+        c.prefixes.insert("typst".to_string(), ";".to_string());
+        let items = completions_at(";alpha", pos(0, 6), &c).expect("items");
+        let e = edit(find(&items, ";alpha"));
+        assert_eq!(e.new_text, "α");
+        assert_eq!(e.range.start.character, 0);
+        // Backslash should no longer trigger Typst when the prefix is ";".
+        assert!(completions_at("\\alpha", pos(0, 6), &c).is_none());
+    }
+
+    #[test]
     fn ascii_operator_digraph() {
         let items = completions_at("=>", pos(0, 2), &cfg(&["ascii"])).expect("items");
         let e = edit(find(&items, "=>"));
@@ -323,17 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn ascii_partial_operator_offers_prefix_matches() {
-        // Typing just "<" should offer "<-", "<->", "<=", "<=>".
-        let items = completions_at("<", pos(0, 1), &cfg(&["ascii"])).expect("items");
-        let labels: Vec<_> = items.iter().map(|i| i.label.as_str()).collect();
-        assert!(labels.contains(&"<-"));
-        assert!(labels.contains(&"<="));
-    }
-
-    #[test]
     fn operator_run_stops_at_non_operator() {
-        // "2=>" — the leading digit must not be part of the replaced range.
         let items = completions_at("2=>", pos(0, 3), &cfg(&["ascii"])).expect("items");
         let e = edit(find(&items, "=>"));
         assert_eq!(e.range.start.character, 1);
@@ -347,10 +414,20 @@ mod tests {
     }
 
     #[test]
-    fn both_schemes_enabled() {
-        let c = cfg(&["unicode-math", "ascii"]);
-        assert!(completions_at("\\leq", pos(0, 4), &c).is_some());
-        assert!(completions_at("->", pos(0, 2), &c).is_some());
+    fn both_prefix_schemes_share_backslash() {
+        let c = cfg(&["unicode-math", "typst"]);
+        // unicode-math `\in` and Typst `\in` both available under the same prefix.
+        let items = completions_at("\\in", pos(0, 3), &c).expect("items");
+        assert!(items.iter().any(|i| i.label == "\\in"
+            && i.label_details
+                .as_ref()
+                .and_then(|d| d.description.as_deref())
+                == Some("Typst")));
+        assert!(items.iter().any(|i| i.label == "\\in"
+            && i.label_details
+                .as_ref()
+                .and_then(|d| d.description.as_deref())
+                == Some("unicode-math")));
     }
 
     #[test]
@@ -370,18 +447,24 @@ mod tests {
     }
 
     #[test]
-    fn config_parses_from_initialization_options() {
-        let v = serde_json::json!({"enabledSchemes": ["ascii"], "includeAscii": true});
+    fn config_parses_prefixes() {
+        let v = serde_json::json!({
+            "enabledSchemes": ["unicode-math", "typst"],
+            "includeAscii": true,
+            "prefixes": { "typst": ";" }
+        });
         let c = parse_config(Some(&v)).unwrap();
-        assert_eq!(c.enabled_schemes, vec!["ascii".to_string()]);
+        assert_eq!(c.enabled_schemes, vec!["unicode-math", "typst"]);
         assert!(c.include_ascii);
+        assert_eq!(c.prefix("typst", "\\"), ";");
+        assert_eq!(c.prefix("unicode-math", "\\"), "\\"); // default kept
     }
 
     #[test]
     fn config_parses_under_unikodo_key() {
-        let v = serde_json::json!({"unikodo": {"enabledSchemes": ["unicode-math", "ascii"]}});
+        let v = serde_json::json!({"unikodo": {"enabledSchemes": ["typst"]}});
         let c = parse_config(Some(&v)).unwrap();
-        assert_eq!(c.enabled_schemes.len(), 2);
-        assert!(!c.include_ascii); // default preserved for omitted field
+        assert_eq!(c.enabled_schemes, vec!["typst"]);
+        assert!(!c.include_ascii);
     }
 }

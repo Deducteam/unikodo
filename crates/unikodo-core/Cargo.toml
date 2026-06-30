@@ -12,3 +12,6 @@ rust-version.workspace = true
 include = ["src/**/*.rs", "data/unicode-math-table.tex", "data/README.md"]
 
 [dependencies]
+# Typst symbol names (the `sym` module). Apache-2.0; the `numeral-systems` and
+# `styling` default features (and their deps) are not needed.
+codex = { workspace = true }

@@ -36,15 +36,18 @@ Configure naming schemes in your Zed `settings.json`:
   "lsp": {
     "unikodo": {
       "initialization_options": {
-        "enabledSchemes": ["unicode-math", "ascii"],
-        "includeAscii": false
+        "enabledSchemes": ["unicode-math", "typst", "ascii"],
+        "includeAscii": false,
+        "prefixes": { "typst": ";" }
       }
     }
   }
 }
 ```
 
-`ascii` adds inline digraphs (`=>` → `⇒`); it is off by default.
+Built-in schemes: `unicode-math` (`\leq`), `typst` (`\arrow.r.double`), and
+`ascii` (inline `=>` → `⇒`). Prefix schemes default to `\`; `prefixes` overrides
+them per scheme. `ascii` and `typst` are off by default.
 
 ## Notes
 
