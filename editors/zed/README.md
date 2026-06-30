@@ -27,6 +27,25 @@ and accept the completion to insert the character.
 To enable it for more languages, add them under `[language_servers.unikodo]` in
 `extension.toml` and reinstall the dev extension.
 
+## Configuration
+
+Configure naming schemes in your Zed `settings.json`:
+
+```json
+{
+  "lsp": {
+    "unikodo": {
+      "initialization_options": {
+        "enabledSchemes": ["unicode-math", "ascii"],
+        "includeAscii": false
+      }
+    }
+  }
+}
+```
+
+`ascii` adds inline digraphs (`=>` → `⇒`); it is off by default.
+
 ## Notes
 
 This extension is built with [`zed_extension_api`](https://crates.io/crates/zed_extension_api)

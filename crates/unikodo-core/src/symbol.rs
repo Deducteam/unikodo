@@ -1,18 +1,22 @@
-/// A single Unicode symbol together with its `unicode-math` macro name, math
-/// class, and human-readable description.
+/// A single Unicode symbol exposed by some naming [scheme](crate::scheme): a
+/// `name` within that scheme that expands to a Unicode character `ch`.
 ///
-/// All string fields borrow from the table embedded at compile time, so a
-/// `Symbol` is cheap to copy and lives for the whole program (`'static`).
+/// All string fields borrow from data embedded at compile time, so a `Symbol` is
+/// cheap to copy and lives for the whole program (`'static`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Symbol {
-    /// Macro name *without* the leading backslash, e.g. `"lparen"`.
+    /// Id of the scheme this name belongs to, e.g. `"unicode-math"` or `"ascii"`.
+    pub scheme: &'static str,
+    /// Name within the scheme, *without* any trigger prefix. For `unicode-math`
+    /// this is the macro minus its backslash (`"leq"`); for `ascii` it is the
+    /// literal digraph (`"=>"`).
     pub name: &'static str,
-    /// The Unicode character this macro expands to.
+    /// The Unicode character this name expands to.
     pub ch: char,
-    /// The `unicode-math` math class without the leading backslash, e.g.
-    /// `"mathopen"`, `"mathrel"`, or `"mathalpha"`.
-    pub class: &'static str,
-    /// Human-readable description, e.g. `"left parenthesis"`.
+    /// `unicode-math` math class without the leading backslash (e.g. `"mathrel"`),
+    /// when the scheme provides one.
+    pub class: Option<&'static str>,
+    /// Human-readable description, e.g. `"less-than or equal to"`.
     pub description: &'static str,
 }
 
@@ -31,8 +35,7 @@ impl Symbol {
     /// Whether the character is in the ASCII range (`< U+0080`).
     ///
     /// unikodo's completions target *non-ASCII* characters by default, since a
-    /// macro that expands to an ASCII character (e.g. `\lparen` → `(`) is rarely
-    /// worth a completion.
+    /// name that expands to an ASCII character is rarely worth a completion.
     #[inline]
     pub const fn is_ascii(&self) -> bool {
         self.codepoint() < 0x80

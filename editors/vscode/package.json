@@ -44,6 +44,21 @@
             "*"
           ],
           "description": "Language IDs to enable completions for. Use [\"*\"] for all files."
+        },
+        "unikodo.enabledSchemes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "unicode-math"
+          ],
+          "description": "Naming schemes to offer completions from. Built-ins: \"unicode-math\", \"ascii\"."
+        },
+        "unikodo.includeAscii": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also offer names whose target character is ASCII (e.g. \\lparen -> '(')."
         }
       }
     }

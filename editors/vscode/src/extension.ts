@@ -22,6 +22,14 @@ export function activate(_context: ExtensionContext): void {
     documentSelector: languages.includes("*")
       ? [{ scheme: "file" }, { scheme: "untitled" }]
       : languages.map((language) => ({ scheme: "file", language })),
+    initializationOptions: {
+      enabledSchemes: config.get<string[]>("enabledSchemes") ?? ["unicode-math"],
+      includeAscii: config.get<boolean>("includeAscii") ?? false,
+    },
+    // Propagate live setting changes to the server.
+    synchronize: {
+      configurationSection: "unikodo",
+    },
   };
 
   client = new LanguageClient(

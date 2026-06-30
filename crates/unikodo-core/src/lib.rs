@@ -1,27 +1,30 @@
-//! Unicode (math) symbol database for unikodo.
+//! Unicode symbol database for unikodo.
 //!
-//! The data is sourced from the [`unicode-math`] package's
-//! `unicode-math-table.tex`, vendored under `data/` and embedded into the binary
-//! at compile time. Each entry maps a `unicode-math` macro to a Unicode
-//! character, a math class, and a human-readable description.
+//! unikodo exposes symbols through one or more *naming schemes* (see
+//! [`mod@scheme`]): `unicode-math` macros, ASCII digraphs, and — by design —
+//! more in future. Every [`Symbol`] is tagged with the scheme it came from, so
+//! callers can enable any subset and match within each scheme independently.
 //!
-//! See `data/README.md` for provenance and licensing of the embedded table.
-//!
-//! [`unicode-math`]: https://github.com/wspr/unicode-math
+//! The `unicode-math` data is sourced from that package's
+//! `unicode-math-table.tex`, vendored under `data/` and embedded at compile time
+//! (see `data/README.md` for provenance and licensing).
 //!
 //! # Example
 //!
 //! ```
-//! let leq = unikodo_core::symbols()
-//!     .iter()
+//! use unikodo_core::{complete_in, UNICODE_MATH};
+//!
+//! let leq = complete_in(UNICODE_MATH, "leq", false)
 //!     .find(|s| s.name == "leq")
 //!     .unwrap();
 //! assert_eq!(leq.ch, '≤');
-//! assert_eq!(leq.class, "mathrel");
+//! assert_eq!(leq.class, Some("mathrel"));
 //! ```
 
 mod db;
+mod scheme;
 mod symbol;
 
-pub use db::{complete, symbols};
+pub use db::{complete_in, name_chars, symbols};
+pub use scheme::{scheme, schemes, SchemeInfo, Trigger, ASCII, UNICODE_MATH};
 pub use symbol::Symbol;

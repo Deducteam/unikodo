@@ -29,6 +29,7 @@ Development Host.
 
 Type a backslash followed by a `unicode-math` macro name — e.g. `\leq`, `\BbbR`,
 `\rightarrow` — and accept the completion to insert the character (`≤`, `ℝ`, `→`).
+Enable the `ascii` scheme to also get inline digraphs like `=>` → `⇒`.
 
 ## Settings
 
@@ -36,3 +37,5 @@ Type a backslash followed by a `unicode-math` macro name — e.g. `\leq`, `\BbbR
 | --- | --- | --- |
 | `unikodo.serverPath` | `unikodo-lsp` | Path to the language server binary. |
 | `unikodo.languages` | `["*"]` | Language IDs to enable completions for; `["*"]` means all files. |
+| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `ascii`. |
+| `unikodo.includeAscii` | `false` | Also offer names whose target character is ASCII. |

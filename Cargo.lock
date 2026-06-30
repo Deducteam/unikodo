@@ -675,6 +675,8 @@ name = "unikodo-lsp"
 version = "0.1.0"
 dependencies = [
  "dashmap 6.2.1",
+ "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
  "unikodo-core",

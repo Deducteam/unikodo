@@ -44,6 +44,34 @@ character. By default only **non-ASCII** characters are offered (a completion fo
 > and alphabetic letters use systematic names — for example α is `\mupalpha` and
 > ℝ is `\BbbR`. Browse `unicode-math-symbols.pdf` to find a symbol's macro.
 
+## Naming schemes
+
+unikodo is built around multiple **naming schemes** — different vocabularies you
+can type for the same characters — and lets you choose which are active:
+
+| Scheme | Trigger | Examples |
+| --- | --- | --- |
+| `unicode-math` | backslash prefix | `\leq` → `≤`, `\BbbR` → `ℝ` |
+| `ascii` | inline digraph | `=>` → `⇒`, `->` → `→`, `<=` → `≤` |
+
+More schemes (e.g. Typst names) can be added the same way: a name→character
+table tagged with the scheme's id plus a trigger model (backslash prefix or
+inline operator). The `ascii` set is currently a small starter list.
+
+## Configuration
+
+Settings reach the server via `initializationOptions`, and live updates via
+`workspace/didChangeConfiguration`:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabledSchemes` | `["unicode-math"]` | Which schemes to offer. `ascii` is opt-in (it registers many trigger characters). |
+| `includeAscii` | `false` | Also offer names whose target character is ASCII. |
+
+In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii`. In **Zed**,
+put them under `lsp.unikodo.initialization_options` in your settings. For a raw
+LSP client, pass them as `initializationOptions` at initialize.
+
 ## Build
 
 ```sh
@@ -89,10 +117,11 @@ cargo test -p unikodo-core             # validate (adjust the count test if need
 
 ## Status
 
-Early scaffold. Working today: the symbol database and an LSP server that serves
-backslash-triggered completions, plus VSCode and Zed extension shims. Natural
-next steps include description/fuzzy search, per-client configuration, and
-prebuilt server binaries for the extensions to download.
+Early stage. Working today: the scheme-aware symbol database and an LSP server
+serving completions across configurable naming schemes (unicode-math macros and
+ASCII digraphs), plus VSCode and Zed extension shims. Natural next steps include
+more schemes (Typst names, familiar aliases like `\alpha`), description/fuzzy
+search, and prebuilt server binaries for the extensions to download.
 
 ## Licensing
 
