@@ -64,6 +64,11 @@
           "type": "object",
           "default": {},
           "description": "Per-scheme prefix overrides, e.g. {\"typst\": \";\"}. Prefix schemes default to \"\\\\\"."
+        },
+        "unikodo.dedupe": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collapse identical completions (same name + character) from multiple schemes, keeping the first by enabledSchemes order."
         }
       }
     }

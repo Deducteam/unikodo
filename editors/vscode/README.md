@@ -52,3 +52,4 @@ character: `unicode-math` macros (`\leq` → `≤`, `\BbbR` → `ℝ`) or, with 
 | `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `typst`, `ascii`. |
 | `unikodo.includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
 | `unikodo.prefixes` | `{}` | Per-scheme prefix overrides, e.g. `{"typst": ";"}`. |
+| `unikodo.dedupe` | `true` | Collapse identical completions from multiple schemes (first by `enabledSchemes` wins). |

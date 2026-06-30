@@ -1,13 +1,13 @@
 //! unikodo LSP server: Unicode symbol completions across multiple naming schemes.
 //!
-//! Each enabled [naming scheme](unikodo_core::scheme) contributes completions:
-//! `unicode-math` macros (`\leq` → `≤`), Typst `sym` names (`\arrow.r.double` →
-//! `⇒`), and ASCII digraphs typed inline (`=>` → `⇒`). Accepting a completion
-//! replaces the typed name with the Unicode character. Which schemes are active —
-//! and, for prefix schemes, which prefix triggers them — is configurable (see
-//! [`Config`]).
+//! Each enabled [naming scheme](unikodo_core::scheme) contributes completions —
+//! `unicode-math`, `latex`, `lean`, `rocq`, and `typst` names typed after a prefix
+//! (`\leq` → `≤`, `\arrow.r.double` → `⇒`), plus `ascii` digraphs typed inline
+//! (`=>` → `⇒`). Accepting one replaces the typed name with the character. Which
+//! schemes are active, their prefixes, and whether duplicate completions from
+//! different schemes are collapsed are all configurable (see [`Config`]).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::RwLock;
 
 use dashmap::DashMap;
@@ -31,6 +31,9 @@ struct Config {
     /// Per-scheme prefix overrides (scheme id → prefix), for prefix-triggered
     /// schemes. Defaults to each scheme's built-in prefix when absent.
     prefixes: BTreeMap<String, String>,
+    /// Collapse completions that are identical (same typed name + same inserted
+    /// text) across enabled schemes, keeping the first by `enabled_schemes` order.
+    dedupe: bool,
 }
 
 impl Default for Config {
@@ -39,6 +42,7 @@ impl Default for Config {
             enabled_schemes: vec![UNICODE_MATH.to_string()],
             include_ascii: false,
             prefixes: BTreeMap::new(),
+            dedupe: true,
         }
     }
 }
@@ -211,7 +215,22 @@ fn completions_at(text: &str, position: Position, config: &Config) -> Option<Vec
         );
     }
 
+    // Collapse identical completions (same typed name + inserted text) from
+    // different schemes, keeping the first by `enabled_schemes` order.
+    if config.dedupe {
+        let mut seen = HashSet::new();
+        items.retain(|item| seen.insert((item.label.clone(), inserted_text(item).to_string())));
+    }
+
     (!items.is_empty()).then_some(items)
+}
+
+/// The text a completion item inserts (its text edit's `new_text`), or `""`.
+fn inserted_text(item: &CompletionItem) -> &str {
+    match &item.text_edit {
+        Some(CompletionTextEdit::Edit(edit)) => &edit.new_text,
+        _ => "",
+    }
 }
 
 /// Token for a prefix-triggered scheme: the text after the last occurrence of
@@ -333,6 +352,7 @@ mod tests {
             enabled_schemes: schemes.iter().map(|s| s.to_string()).collect(),
             include_ascii: false,
             prefixes: BTreeMap::new(),
+            dedupe: false, // tests opt in explicitly
         }
     }
 
@@ -458,6 +478,7 @@ mod tests {
         assert!(c.include_ascii);
         assert_eq!(c.prefix("typst", "\\"), ";");
         assert_eq!(c.prefix("unicode-math", "\\"), "\\"); // default kept
+        assert!(c.dedupe); // on by default when unspecified
     }
 
     #[test]
@@ -466,5 +487,45 @@ mod tests {
         let c = parse_config(Some(&v)).unwrap();
         assert_eq!(c.enabled_schemes, vec!["typst"]);
         assert!(!c.include_ascii);
+    }
+
+    #[test]
+    fn dedupe_collapses_identical_cross_scheme() {
+        // unicode-math and typst both provide \in -> ∈.
+        let mut c = cfg(&["unicode-math", "typst"]);
+        c.dedupe = true;
+        let items = completions_at("\\in", pos(0, 3), &c).expect("items");
+        let ins = items
+            .iter()
+            .filter(|i| i.label == "\\in")
+            .collect::<Vec<_>>();
+        assert_eq!(ins.len(), 1);
+        // First by enabled_schemes order wins.
+        assert_eq!(
+            ins[0]
+                .label_details
+                .as_ref()
+                .and_then(|d| d.description.as_deref()),
+            Some("unicode-math")
+        );
+    }
+
+    #[test]
+    fn dedupe_keeps_distinct_names_for_same_char() {
+        // \le and \leq both insert ≤ but are different names: both kept.
+        let mut c = cfg(&["latex"]);
+        c.dedupe = true;
+        let items = completions_at("\\le", pos(0, 3), &c).expect("items");
+        let labels: Vec<_> = items.iter().map(|i| i.label.as_str()).collect();
+        assert!(labels.contains(&"\\le"));
+        assert!(labels.contains(&"\\leq"));
+    }
+
+    #[test]
+    fn dedupe_off_keeps_every_scheme() {
+        let mut c = cfg(&["unicode-math", "typst"]);
+        c.dedupe = false;
+        let items = completions_at("\\in", pos(0, 3), &c).expect("items");
+        assert!(items.iter().filter(|i| i.label == "\\in").count() >= 2);
     }
 }
