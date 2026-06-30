@@ -16,6 +16,17 @@ keep it elsewhere, set `unikodo.serverPath`.
 
 ## Building / running (dev)
 
+Easiest — from the repository root, the helper script builds the server and
+extension, wires them together in a throwaway profile (with the `ascii` scheme
+enabled and a playground file), and launches an isolated VSCode window with no
+other extensions:
+
+```sh
+scripts/dev-vscode.sh              # add --no-launch to set up without opening a window
+```
+
+Or by hand:
+
 ```sh
 cd editors/vscode
 npm install

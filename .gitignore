@@ -12,6 +12,9 @@ editors/zed/target/
 editors/zed/*.wasm
 editors/zed/extension.wasm
 
+# Local VSCode dev-host profile (scripts/dev-vscode.sh)
+/.dev-vscode/
+
 # Editor / OS cruft
 .DS_Store
 *.swp
