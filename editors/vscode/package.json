@@ -1,0 +1,64 @@
+{
+  "name": "unikodo",
+  "displayName": "Unikodo — Unicode completions",
+  "description": "Unicode (math) symbol completions via the unikodo LSP server",
+  "version": "0.1.0",
+  "publisher": "deducteam",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deducteam/unikodo"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "unicode",
+    "latex",
+    "math",
+    "completion",
+    "unicode-math"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Unikodo",
+      "properties": {
+        "unikodo.serverPath": {
+          "type": "string",
+          "default": "unikodo-lsp",
+          "description": "Path to the unikodo-lsp executable. If it is on your PATH, the default is fine."
+        },
+        "unikodo.languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*"
+          ],
+          "description": "Language IDs to enable completions for. Use [\"*\"] for all files."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,17 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node / VSCode extension
+editors/vscode/node_modules/
+editors/vscode/out/
+editors/vscode/*.vsix
+
+# Zed extension build artifacts
+editors/zed/target/
+editors/zed/*.wasm
+editors/zed/extension.wasm
+
+# Editor / OS cruft
+.DS_Store
+*.swp

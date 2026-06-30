@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = ["crates/unikodo-core", "crates/unikodo-lsp"]
+# The Zed extension is a separate cdylib compiled to WebAssembly by Zed itself,
+# so it is intentionally kept out of the normal workspace build.
+exclude = ["editors/zed"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Deducteam/unikodo"
+authors = ["Deducteam"]
+rust-version = "1.74"
+
+[workspace.dependencies]
+unikodo-core = { path = "crates/unikodo-core", version = "0.1.0" }
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
+dashmap = "6"
+
+[profile.release]
+lto = "thin"
+strip = true

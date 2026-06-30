@@ -1,0 +1,19 @@
+[package]
+name = "unikodo-lsp"
+description = "LSP server providing Unicode (math) symbol completions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "unikodo-lsp"
+path = "src/main.rs"
+
+[dependencies]
+unikodo-core = { workspace = true }
+tower-lsp = { workspace = true }
+tokio = { workspace = true }
+dashmap = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "unikodo-core"
+description = "Unicode (math) symbol database and completion matching for unikodo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+# The symbol table is embedded at compile time; keep it in the published package.
+include = ["src/**/*.rs", "data/unicode-math-table.tex", "data/README.md"]
+
+[dependencies]

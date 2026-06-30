@@ -1,0 +1,14 @@
+id = "unikodo"
+name = "Unikodo"
+version = "0.1.0"
+schema_version = 1
+authors = ["Deducteam"]
+description = "Unicode (math) symbol completions, powered by the unikodo LSP server"
+repository = "https://github.com/Deducteam/unikodo"
+
+# Zed attaches a language server to specific languages. These are sensible
+# defaults; add any other (built-in or extension-provided) language names you
+# want Unicode completions in.
+[language_servers.unikodo]
+name = "Unikodo"
+languages = ["Markdown", "Plain Text"]
