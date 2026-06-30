@@ -27,8 +27,6 @@ each redistributed under its own license (not the MIT license above):
 
   - unicode-math (unicode-math-table.tex) — LPPL v1.3c or later
   - W3C "XML Entity Definitions for Characters" (latex-symbols.tsv) — W3C license
-  - leanprover/vscode-lean4 (lean-symbols.tsv) — Apache-2.0
-  - rocq-prover/rocq (rocq-symbols.tsv) — LGPL-2.1-only
 
 The Typst `sym` data is obtained at build time from the `codex` crate (Apache-2.0)
 and is not vendored here. See `crates/unikodo-core/data/README.md` for details.

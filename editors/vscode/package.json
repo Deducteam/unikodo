@@ -53,17 +53,17 @@
           "default": [
             "unicode-math"
           ],
-          "description": "Naming schemes to offer completions from. Built-ins: \"unicode-math\", \"typst\", \"ascii\"."
+          "description": "Naming schemes to offer completions from. Built-ins: \"unicode-math\", \"latex\", \"typst\", \"unicode\", \"ascii\"."
         },
         "unikodo.includeAscii": {
           "type": "boolean",
           "default": false,
           "description": "Also offer names whose value is a single ASCII character (e.g. \\lparen -> '(')."
         },
-        "unikodo.prefixes": {
+        "unikodo.triggers": {
           "type": "object",
           "default": {},
-          "description": "Per-scheme prefix overrides, e.g. {\"typst\": \";\"}. Prefix schemes default to \"\\\\\"."
+          "description": "Per-scheme trigger overrides, e.g. {\"typst\": \";\"}. An empty string \"\" means no trigger (match the bare name inline). Defaults: \"\\\\\" for unicode-math/latex/typst, \"U+\" for unicode, inline for ascii."
         },
         "unikodo.dedupe": {
           "type": "boolean",

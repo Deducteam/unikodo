@@ -50,7 +50,7 @@ mkdir -p "$SETTINGS_DIR" "$SCRATCH_DIR"
 cat >"$SETTINGS_DIR/settings.json" <<JSON
 {
   "unikodo.serverPath": "$SERVER",
-  "unikodo.enabledSchemes": ["unicode-math", "latex", "lean", "rocq", "typst", "ascii"],
+  "unikodo.enabledSchemes": ["unicode-math", "latex", "typst", "unicode", "ascii"],
   "unikodo.includeAscii": false,
   "unikodo.languages": ["*"],
   "editor.mouseWheelZoom": true,
@@ -102,12 +102,15 @@ typst sym names (also a backslash here; dotted, order-independent modifiers):
   \eq.not          ->  ≠
   \lt.eq           ->  ≤
 
-latex / lean / rocq (familiar backslash names; all enabled in this profile):
+latex (familiar backslash names):
+  \alpha     ->  α
   \leq       ->  ≤
   \forall    ->  ∀
   \subseteq  ->  ⊆
-  \nat       ->  ℕ   (lean)
-  (note: \alpha, \forall, ... are offered by several schemes at once — see dedup)
+
+unicode code points (type the U+ trigger then hex):
+  U+03B1     ->  α
+  U+2200     ->  ∀
 
 ascii digraphs (this profile enables the "ascii" scheme):
   =>   ->  ⇒

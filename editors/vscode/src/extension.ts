@@ -25,7 +25,7 @@ export function activate(_context: ExtensionContext): void {
     initializationOptions: {
       enabledSchemes: config.get<string[]>("enabledSchemes") ?? ["unicode-math"],
       includeAscii: config.get<boolean>("includeAscii") ?? false,
-      prefixes: config.get<Record<string, string>>("prefixes") ?? {},
+      triggers: config.get<Record<string, string>>("triggers") ?? {},
       dedupe: config.get<boolean>("dedupe") ?? true,
     },
     // Propagate live setting changes to the server.

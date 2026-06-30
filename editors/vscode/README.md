@@ -39,9 +39,11 @@ Development Host.
 ## Usage
 
 Type a backslash followed by a name and accept the completion to insert the
-character: `unicode-math` macros (`\leq` → `≤`, `\BbbR` → `ℝ`) or, with the
-`typst` scheme enabled, Typst `sym` names (`\arrow.r.double` → `⇒`, `\alpha` →
-`α`). Enable the `ascii` scheme for inline digraphs like `=>` → `⇒`.
+character: `unicode-math` macros (`\leq` → `≤`, `\BbbR` → `ℝ`), or — with those
+schemes enabled — `latex` names (`\alpha` → `α`) and Typst `sym` names
+(`\arrow.r.double` → `⇒`). The `unicode` scheme inserts any code point (`U+2200` →
+`∀`), and `ascii` gives inline digraphs (`=>` → `⇒`). Each scheme's trigger is
+configurable (see `unikodo.triggers`); an empty trigger matches the bare name.
 
 ## Settings
 
@@ -49,7 +51,7 @@ character: `unicode-math` macros (`\leq` → `≤`, `\BbbR` → `ℝ`) or, with 
 | --- | --- | --- |
 | `unikodo.serverPath` | `unikodo-lsp` | Path to the language server binary. |
 | `unikodo.languages` | `["*"]` | Language IDs to enable completions for; `["*"]` means all files. |
-| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `typst`, `ascii`. |
+| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `latex`, `typst`, `unicode`, `ascii`. |
 | `unikodo.includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
-| `unikodo.prefixes` | `{}` | Per-scheme prefix overrides, e.g. `{"typst": ";"}`. |
+| `unikodo.triggers` | `{}` | Per-scheme trigger overrides, e.g. `{"typst": ";"}`. `""` = no trigger (match the bare name inline). |
 | `unikodo.dedupe` | `true` | Collapse identical completions from multiple schemes (first by `enabledSchemes` wins). |
