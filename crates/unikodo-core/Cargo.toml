@@ -15,3 +15,8 @@ include = ["src/**/*.rs", "data/*.tex", "data/*.tsv", "data/README.md"]
 # Typst symbol names (the `sym` module). Apache-2.0; the `numeral-systems` and
 # `styling` default features (and their deps) are not needed.
 codex = { workspace = true }
+
+[dev-dependencies]
+# Used only by `examples/dump_json.rs` to export the symbol DB for the web
+# frontend; not a runtime dependency of the library.
+serde_json = { workspace = true }

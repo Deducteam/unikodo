@@ -22,6 +22,7 @@ unikodo/
 ├── editors/
 │   ├── vscode/          # VSCode extension (TypeScript)
 │   └── zed/             # Zed extension (Rust → WebAssembly)
+├── web/                 # web frontend: showcase + symbol browser (Next.js)
 ├── scripts/             # maintenance scripts
 └── unicode-math-symbols.pdf   # human-readable symbol reference
 ```
@@ -126,6 +127,19 @@ Run `unikodo-lsp` over stdio. For example, with Neovim's built-in LSP:
 
 ```lua
 vim.lsp.start({ name = "unikodo", cmd = { "unikodo-lsp" } })
+```
+
+## Web frontend
+
+[`web/`](web/) is a Next.js site that showcases unikodo and provides a **symbol
+browser** — search every character, see every way to type it across schemes, and
+inspect Unicode details. It is built on the [Andromeda](https://aicanvas.me)
+design tokens + shadcn/ui, and its catalogue is generated from the same database
+the LSP serves (`cargo run -p unikodo-core --example dump_json`). See
+[`web/README.md`](web/README.md).
+
+```sh
+cd web && npm install && npm run dev   # http://localhost:3000
 ```
 
 ## Updating the symbol table

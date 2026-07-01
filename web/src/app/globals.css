@@ -1,0 +1,380 @@
+@import "tailwindcss";
+
+/*
+  unikodo web — design foundation.
+
+  Built on the Andromeda design system's structure (AI Canvas, MIT) — JetBrains
+  Mono throughout, sharp corners, L-shaped corner markers — but the palette
+  follows the Zedokai theme (a Monokai Pro port for Zed). Dark is Zedokai Darker
+  (Filter Spectrum): #1c1c1c / #222222 surfaces, #f7f1ff text, a #fce566 yellow
+  accent. Light (via prefers-color-scheme) is Zedokai Light (Filter Sun): cream
+  #f8efe7 surfaces, #2c232e ink, a #b16803 amber accent. The editor demo's
+  lambdapi highlighting mirrors the roles in the Zed tree-sitter queries (see
+  --code-* below). The Andromeda tokens are
+  also bridged onto the shadcn/ui CSS-variable contract (--background,
+  --primary, --border, …) so shadcn primitives inherit the same palette.
+*/
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Andromeda raw tokens — Zedokai Darker (Filter Spectrum) --------- */
+  /* Text. */
+  --andromeda-text-primary: #f7f1ff;
+  --andromeda-text-secondary: #c7c3cf;
+  --andromeda-text-muted: #8b888f;
+  --andromeda-text-faint: #525053;
+  /* Surfaces — page void (darker), a raised ladder toward the editor bg. */
+  --andromeda-surface-base: #1c1c1c;
+  --andromeda-surface-raised: #222222;
+  --andromeda-surface-overlay: #2a2a2a;
+  --andromeda-surface-hover: #302f31;
+  --andromeda-surface-active: #363537;
+  --andromeda-surface-alpha: rgba(10, 10, 10, 0.66);
+  /* Borders. */
+  --andromeda-border-subtle: #2b2a2c;
+  --andromeda-border-base: #38373a;
+  --andromeda-border-bright: #525053;
+  --andromeda-border-strong: #8b888f;
+  --andromeda-border-alpha: rgba(247, 241, 255, 0.13);
+  /* Accent — Spectrum yellow (text.accent #fce566). */
+  --andromeda-accent-100: #fef4a8;
+  --andromeda-accent-200: #fdee85;
+  --andromeda-accent-300: #fce566;
+  --andromeda-accent-400: #cbb84f;
+  --andromeda-accent-500: #6e6430;
+  --andromeda-accent-alpha: rgba(252, 229, 102, 0.2);
+  /* Orange — Spectrum (#fd9353). */
+  --andromeda-orange-100: #fed7b1;
+  --andromeda-orange-200: #fdb583;
+  --andromeda-orange-300: #fd9353;
+  --andromeda-orange-400: #b96f49;
+  --andromeda-orange-500: #5a3a26;
+  --andromeda-orange-alpha: rgba(253, 147, 83, 0.25);
+  /* Red — Spectrum red/pink (#fc618d). */
+  --andromeda-red-100: #ffc9d5;
+  --andromeda-red-200: #fd8fac;
+  --andromeda-red-300: #fc618d;
+  --andromeda-red-400: #b8455f;
+  --andromeda-red-500: #5c2632;
+  --andromeda-red-alpha: rgba(252, 97, 141, 0.25);
+  /* Gradients. */
+  --andromeda-gradient-accent-fade: linear-gradient(180deg, #222222 0%, #1c1c1c 100%);
+  --andromeda-gradient-accent-sweep: radial-gradient(
+    ellipse 80% 70% at 0% 0%,
+    #2c2c2c 0%,
+    #242424 28%,
+    #1e1e1e 65%
+  );
+  --andromeda-gradient-surface-soft: linear-gradient(180deg, #222222 0%, #191919 100%);
+
+  /* ---- Decorative backdrop tint + big-glyph glow (mode-aware) ---------- */
+  --site-bloom: rgba(252, 229, 102, 0.05);
+  --site-hairline: rgba(252, 229, 102, 0.18);
+  --site-glow: rgba(252, 229, 102, 0.12);
+
+  /* ---- Categorical scheme colors (Spectrum) --------------------------- */
+  --scheme-unicode-math: #5ad4e6;
+  --scheme-latex: #7bd88f;
+  --scheme-typst: #948ae3;
+  --scheme-unicode: #8b888f;
+  --scheme-ascii: #fd9353;
+
+  /* ---- Editor demo: lambdapi highlighting, mirroring the Zed queries --- */
+  /* Roles match editors/zed/languages/lambdapi/highlights.scm: operators and
+     binders are @punctuation (gray); TYPE is @constant (purple); symbol names
+     are @function (green); modifiers are @attribute (cyan). */
+  --code-keyword: #fc618d; /* pink   — symbol, require, begin, assume, apply … */
+  --code-attribute: #5ad4e6; /* cyan   — constant/opaque/infix/left/right … */
+  --code-constant: #948ae3; /* purple — TYPE, _, ?meta */
+  --code-func: #7bd88f; /* green  — symbol/definition names, $pattern vars */
+  --code-type: #5ad4e6; /* cyan   — inductive type names */
+  --code-variable: #f7f1ff; /* white  — identifiers (incl. π, Prop) */
+  --code-string: #fce566; /* yellow — strings, module-path prefixes */
+  --code-number: #948ae3; /* purple */
+  --code-punct: #8b888f; /* gray   — → ⇒ ≔ λ Π and ( ) : ; , . */
+  --code-comment: #69676c; /* gray */
+  --code-macro: #69676c; /* gray   — a pending \macro (dim vs accepted glyph) */
+
+  /* ---- shadcn/ui semantic contract (mapped onto Andromeda) ------------- */
+  --background: var(--andromeda-surface-base);
+  --foreground: var(--andromeda-text-primary);
+  --card: var(--andromeda-surface-raised);
+  --card-foreground: var(--andromeda-text-primary);
+  --popover: var(--andromeda-surface-overlay);
+  --popover-foreground: var(--andromeda-text-primary);
+  --primary: var(--andromeda-accent-300);
+  --primary-foreground: var(--andromeda-surface-base);
+  --secondary: var(--andromeda-surface-active);
+  --secondary-foreground: var(--andromeda-text-primary);
+  --muted: var(--andromeda-surface-overlay);
+  --muted-foreground: var(--andromeda-text-muted);
+  --accent: var(--andromeda-surface-hover);
+  --accent-foreground: var(--andromeda-text-primary);
+  --destructive: var(--andromeda-red-300);
+  --destructive-foreground: var(--andromeda-text-primary);
+  --border: var(--andromeda-border-base);
+  --input: var(--andromeda-border-base);
+  --ring: var(--andromeda-accent-300);
+  --radius: 3px;
+}
+
+/* ---- Light mode — Zedokai Light (Filter Sun) --------------------------- */
+/* Only the raw tokens flip; the shadcn contract + @theme map through them.
+   The active theme is chosen before paint by the inline script in the root
+   layout — stored preference, else the OS prefers-color-scheme — which sets
+   data-theme on <html>; the header toggle flips it. Default (no script / no
+   JS) is the dark :root above. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --andromeda-text-primary: #2c232e;
+  --andromeda-text-secondary: #574f58;
+  --andromeda-text-muted: #92898a;
+  --andromeda-text-faint: #beb5b3;
+  --andromeda-surface-base: #f8efe7;
+  --andromeda-surface-raised: #fdf7f3;
+  --andromeda-surface-overlay: #fffdfa;
+  --andromeda-surface-hover: #ece5df;
+  --andromeda-surface-active: #ded5d0;
+  --andromeda-surface-alpha: rgba(44, 35, 46, 0.14);
+  --andromeda-border-subtle: #ece4dc;
+  --andromeda-border-base: #d8d0c9;
+  --andromeda-border-bright: #beb5b3;
+  --andromeda-border-strong: #92898a;
+  --andromeda-border-alpha: rgba(44, 35, 46, 0.14);
+  --andromeda-accent-100: #d98f2a;
+  --andromeda-accent-200: #c47d16;
+  --andromeda-accent-300: #b16803;
+  --andromeda-accent-400: #8a5100;
+  --andromeda-accent-500: #e8dcc4;
+  --andromeda-accent-alpha: rgba(177, 104, 3, 0.14);
+  --andromeda-orange-300: #d4572b;
+  --andromeda-red-300: #ce4770;
+  --andromeda-gradient-accent-fade: linear-gradient(180deg, #fdf7f3 0%, #f8efe7 100%);
+  --andromeda-gradient-accent-sweep: radial-gradient(
+    ellipse 80% 70% at 0% 0%,
+    #fffdf9 0%,
+    #fbf4ec 28%,
+    #f6ece3 65%
+  );
+  --andromeda-gradient-surface-soft: linear-gradient(180deg, #fdf7f3 0%, #f4ebe2 100%);
+  --site-bloom: rgba(177, 104, 3, 0.05);
+  --site-hairline: rgba(177, 104, 3, 0.16);
+  --site-glow: rgba(177, 104, 3, 0.1);
+  --scheme-unicode-math: #2473b6;
+  --scheme-latex: #218871;
+  --scheme-typst: #6851a2;
+  --scheme-unicode: #92898a;
+  --scheme-ascii: #d4572b;
+  --code-keyword: #ce4770;
+  --code-attribute: #2473b6;
+  --code-constant: #6851a2;
+  --code-func: #218871;
+  --code-type: #2473b6;
+  --code-variable: #2c232e;
+  --code-string: #b16803;
+  --code-number: #6851a2;
+  --code-punct: #92898a;
+  --code-comment: #a59c9c;
+  --code-macro: #a59c9c;
+  --primary-foreground: #fffdf8;
+}
+
+/* ---- Tailwind v4 theme: generate utilities from the tokens ------------- */
+@theme inline {
+  --font-sans: var(--font-jetbrains-mono), "JetBrains Mono", "IBM Plex Mono",
+    ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--font-sans);
+
+  /* shadcn semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Andromeda surface ladder */
+  --color-surface: var(--andromeda-surface-base);
+  --color-raised: var(--andromeda-surface-raised);
+  --color-overlay: var(--andromeda-surface-overlay);
+  --color-elevated: var(--andromeda-surface-hover);
+  --color-active: var(--andromeda-surface-active);
+
+  /* Wires (border greys) */
+  --color-wire-subtle: var(--andromeda-border-subtle);
+  --color-wire: var(--andromeda-border-base);
+  --color-wire-bright: var(--andromeda-border-bright);
+  --color-wire-strong: var(--andromeda-border-strong);
+
+  /* Ink (text ladder) */
+  --color-ink: var(--andromeda-text-primary);
+  --color-ink-secondary: var(--andromeda-text-secondary);
+  --color-ink-muted: var(--andromeda-text-muted);
+  --color-ink-faint: var(--andromeda-text-faint);
+
+  /* Brand accent scale (turquoise) */
+  --color-brand-100: var(--andromeda-accent-100);
+  --color-brand-200: var(--andromeda-accent-200);
+  --color-brand-300: var(--andromeda-accent-300);
+  --color-brand-400: var(--andromeda-accent-400);
+  --color-brand-500: var(--andromeda-accent-500);
+
+  /* Orange + red scales */
+  --color-orange-100: var(--andromeda-orange-100);
+  --color-orange-200: var(--andromeda-orange-200);
+  --color-orange-300: var(--andromeda-orange-300);
+  --color-orange-400: var(--andromeda-orange-400);
+  --color-orange-500: var(--andromeda-orange-500);
+  --color-red-100: var(--andromeda-red-100);
+  --color-red-200: var(--andromeda-red-200);
+  --color-red-300: var(--andromeda-red-300);
+  --color-red-400: var(--andromeda-red-400);
+  --color-red-500: var(--andromeda-red-500);
+
+  /* Sharp corners are part of the look. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-andromeda: cubic-bezier(0, 0, 0.2, 1);
+
+  /* Entrance animations */
+  --animate-fade-up: fade-up 0.5s var(--ease-out-andromeda) both;
+  --animate-fade-in: fade-in 0.4s var(--ease-out-andromeda) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* This is a tool about literal character sequences — never let JetBrains
+       Mono's coding ligatures turn "<=", "=>", "->" into ≤, ⇒, →. */
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+
+  /* Tailwind's Preflight resets font-feature-settings on these to `normal`,
+     which re-enables ligatures. Keep them off (and on our mono font). */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-sans);
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+
+  ::selection {
+    background: var(--andromeda-accent-alpha);
+    color: var(--andromeda-accent-100);
+  }
+
+  /* Thin, dark, on-brand scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--andromeda-border-base) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--andromeda-border-base);
+    border: 3px solid var(--andromeda-surface-base);
+    border-radius: 0;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--andromeda-border-bright);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--andromeda-accent-300);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Blueprint grid — a faint technical lattice on the page void. */
+  .bg-blueprint {
+    background-image:
+      linear-gradient(var(--andromeda-border-subtle) 1px, transparent 1px),
+      linear-gradient(90deg, var(--andromeda-border-subtle) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+  }
+
+  /* Wide tracked monospace labels — the Andromeda caption voice. */
+  .label-caps {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--andromeda-text-muted);
+  }
+
+  /* Subtle accent glow for big hero glyphs (mode-aware). */
+  .glow-accent {
+    text-shadow: 0 0 40px var(--site-glow);
+  }
+
+  .animate-fade-up {
+    animation: var(--animate-fade-up);
+  }
+  .animate-fade-in {
+    animation: var(--animate-fade-in);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-in {
+      animation: none;
+    }
+  }
+}

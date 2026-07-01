@@ -677,6 +677,7 @@ name = "unikodo-core"
 version = "0.1.0"
 dependencies = [
  "codex",
+ "serde_json",
 ]
 
 [[package]]
