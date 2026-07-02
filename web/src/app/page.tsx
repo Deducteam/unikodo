@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, GithubLogo } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, ArrowUpRight, GithubLogo } from "@phosphor-icons/react/dist/ssr";
 
 import { characterCount } from "@/lib/symbols";
 import { Panel, PanelHeader } from "@/components/andromeda/panel";
@@ -8,6 +8,14 @@ import { HeroDemo } from "@/components/home/hero-demo";
 import { buttonVariants } from "@/components/ui/button";
 
 const REPO_URL = "https://github.com/Deducteam/unikodo";
+const EXTENSIONS = [
+  {
+    name: "VS Code",
+    href: "https://marketplace.visualstudio.com/items?itemName=deducteam.unikodo",
+  },
+  { name: "Open VSX", href: "https://open-vsx.org/extension/deducteam/unikodo" },
+  { name: "Zed", href: "https://zed.dev/extensions?query=unikodo" },
+];
 
 function fmt(n: number) {
   return n.toLocaleString("en-US");
@@ -53,14 +61,29 @@ export default function HomePage() {
       <section id="install" className="scroll-mt-20 py-12">
         <SectionHeading
           title="Installation & configuration"
-          description="unikodo is a single Rust binary. Build it, put it on your PATH, and point any LSP-capable editor at it — then enable the naming schemes you use."
+          description="Install the VS Code or Zed extension and it fetches the server for you. For any other editor, grab the standalone binary and point its LSP client at it — then enable the naming schemes you use."
         />
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          {EXTENSIONS.map((e) => (
+            <a
+              key={e.name}
+              href={e.href}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              {e.name}
+              <ArrowUpRight size={15} />
+            </a>
+          ))}
+        </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="space-y-4">
             <CodeBlock
-              label="install the server"
-              code={`# build + install onto your PATH\ncargo install --path crates/unikodo-lsp\n\n# it speaks LSP over stdio\nunikodo-lsp`}
+              label="standalone server (other editors)"
+              code={`# install onto your PATH from crates.io\ncargo install unikodo-lsp\n\n# it speaks LSP over stdio\nunikodo-lsp`}
             />
             <CodeBlock
               label="Neovim — any LSP client"

@@ -5,9 +5,18 @@
   "version": "0.1.0",
   "publisher": "deducteam",
   "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1c1c1c",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/Deducteam/unikodo#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/Deducteam/unikodo"
+  },
+  "bugs": {
+    "url": "https://github.com/Deducteam/unikodo/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -32,8 +41,8 @@
       "properties": {
         "unikodo.serverPath": {
           "type": "string",
-          "default": "unikodo-lsp",
-          "description": "Path to the unikodo-lsp executable. If it is on your PATH, the default is fine."
+          "default": "",
+          "description": "Path to the unikodo-lsp executable. Leave empty to auto-download the matching server from GitHub Releases. Set to \"unikodo-lsp\" to use one on your PATH, or an absolute path to a specific build."
         },
         "unikodo.languages": {
           "type": "array",

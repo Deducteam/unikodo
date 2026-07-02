@@ -7,9 +7,12 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+readme = "README.md"
+keywords = ["unicode", "latex", "math", "completion", "typst"]
+categories = ["text-processing", "development-tools"]
 
 # The symbol table is embedded at compile time; keep it in the published package.
-include = ["src/**/*.rs", "data/*.tex", "data/*.tsv", "data/README.md"]
+include = ["src/**/*.rs", "data/*.tex", "data/*.tsv", "data/README.md", "README.md"]
 
 [dependencies]
 # Typst symbol names (the `sym` module). Apache-2.0; the `numeral-systems` and

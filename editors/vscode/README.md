@@ -1,18 +1,20 @@
 # Unikodo for VSCode
 
-A VSCode extension that provides Unicode (math) symbol completions by launching
+A VSCode extension that provides Unicode (math) symbol completions, powered by
 the [`unikodo-lsp`](../../crates/unikodo-lsp) language server.
 
-## Prerequisites
+## Install
 
-`unikodo-lsp` must be available. From the repository root:
+Install **Unikodo** from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=deducteam.unikodo)
+or [Open VSX](https://open-vsx.org/extension/deducteam/unikodo), then start typing
+`\…`. On first use the extension downloads the matching `unikodo-lsp` binary from
+the repository's [GitHub releases](https://github.com/Deducteam/unikodo/releases)
+and caches it — no Rust toolchain required.
 
-```sh
-cargo install --path crates/unikodo-lsp
-```
-
-This installs it onto your Cargo `bin` directory (usually on your `PATH`). If you
-keep it elsewhere, set `unikodo.serverPath`.
+To use your own server build instead, set `unikodo.serverPath` to `unikodo-lsp`
+(resolved on your `PATH`) or to an absolute path. Build one with
+`cargo install unikodo-lsp`.
 
 ## Building / running (dev)
 
@@ -49,7 +51,7 @@ configurable (see `unikodo.triggers`); an empty trigger matches the bare name.
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `unikodo.serverPath` | `unikodo-lsp` | Path to the language server binary. |
+| `unikodo.serverPath` | `""` | Path to the language server binary. Empty auto-downloads it from GitHub releases; `unikodo-lsp` resolves on your `PATH`; or an absolute path. |
 | `unikodo.languages` | `["*"]` | Language IDs to enable completions for; `["*"]` means all files. |
 | `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `latex`, `typst`, `unicode`, `ascii`. |
 | `unikodo.includeAscii` | `false` | Also offer names whose value is a single ASCII character. |

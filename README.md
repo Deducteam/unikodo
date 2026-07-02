@@ -103,23 +103,28 @@ cargo test              # runs the workspace tests
 Install the server onto your `PATH`:
 
 ```sh
-cargo install --path crates/unikodo-lsp
+cargo install unikodo-lsp                 # from crates.io
+cargo install --path crates/unikodo-lsp   # from a checkout
 ```
 
-The binary is `unikodo-lsp`; it speaks LSP over stdio.
+The binary is `unikodo-lsp`; it speaks LSP over stdio. The VS Code and Zed
+extensions download it for you, so a manual install is only needed for other
+editors.
 
 ## Editor setup
 
 ### VSCode
 
-See [`editors/vscode/README.md`](editors/vscode/README.md). Build the extension,
-make sure `unikodo-lsp` is on your `PATH` (or set `unikodo.serverPath`), and
-start typing `\…`.
+Install **Unikodo** from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=deducteam.unikodo)
+or [Open VSX](https://open-vsx.org/extension/deducteam/unikodo); it downloads the
+server on first use. Then start typing `\…`. Set `unikodo.serverPath` to use your
+own build. See [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ### Zed
 
-See [`editors/zed/README.md`](editors/zed/README.md). Install it as a dev
-extension; it launches `unikodo-lsp` from your `PATH`.
+Install **Unikodo** from Zed's extensions view (`zed: extensions`); it downloads
+the server for you. See [`editors/zed/README.md`](editors/zed/README.md).
 
 ### Any LSP client (Neovim, Emacs, …)
 

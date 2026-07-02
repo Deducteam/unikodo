@@ -1,0 +1,87 @@
+name: Release
+
+# Tag a version (e.g. `git tag v0.1.0 && git push --tags`) to cross-compile the
+# `unikodo-lsp` server for every supported platform and attach the binaries to a
+# GitHub Release. The VS Code and Zed extensions download the matching asset on
+# first run, so end users never need a Rust toolchain.
+#
+# Assets are single gzip-compressed binaries named `unikodo-lsp-<target>[.exe].gz`
+# — the extension clients decompress them with a stdlib gunzip (no tar/zip).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and attach binaries to"
+        required: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  binaries:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04 # older glibc → runs on more distros
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - if: matrix.cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --locked -p unikodo-lsp --target ${{ matrix.target }}
+          else
+            cargo build --release --locked -p unikodo-lsp --target ${{ matrix.target }}
+          fi
+
+      - name: Package (gzip)
+        run: |
+          case "${{ matrix.target }}" in
+            *windows*) bin="unikodo-lsp.exe"; asset="unikodo-lsp-${{ matrix.target }}.exe.gz" ;;
+            *)         bin="unikodo-lsp";     asset="unikodo-lsp-${{ matrix.target }}.gz" ;;
+          esac
+          gzip -c "target/${{ matrix.target }}/release/$bin" > "$asset"
+          shasum -a 256 "$asset" > "$asset.sha256"
+          echo "ASSET=$asset" >> "$GITHUB_ENV"
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256
+          fail_on_unmatched_files: true

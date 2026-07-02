@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+readme = "README.md"
+keywords = ["unicode", "lsp", "latex", "math", "completion"]
+categories = ["development-tools", "command-line-utilities"]
 
 [[bin]]
 name = "unikodo-lsp"

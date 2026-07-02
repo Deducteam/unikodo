@@ -1,15 +1,16 @@
 # Unikodo for Zed
 
-A Zed extension that provides Unicode (math) symbol completions by launching the
+A Zed extension that provides Unicode (math) symbol completions, powered by the
 [`unikodo-lsp`](../../crates/unikodo-lsp) language server.
 
-## Prerequisites
+## Install
 
-`unikodo-lsp` must be on your `PATH`. From the repository root:
-
-```sh
-cargo install --path crates/unikodo-lsp
-```
+Open Zed's extensions view (command palette → **`zed: extensions`**), search for
+**Unikodo**, and install it. On first use it downloads the matching `unikodo-lsp`
+binary from the repository's
+[GitHub releases](https://github.com/Deducteam/unikodo/releases) — no Rust
+toolchain required. If `unikodo-lsp` is already on your `PATH`, that is used
+instead.
 
 ## Installing the extension (dev)
 
@@ -56,5 +57,6 @@ across schemes. Only `unicode-math` is on by default.
 
 This extension is built with [`zed_extension_api`](https://crates.io/crates/zed_extension_api)
 and is intentionally kept out of the top-level Cargo workspace (it targets
-`wasm32`). A natural enhancement is to download a prebuilt `unikodo-lsp` from
-GitHub releases when it is not already installed.
+`wasm32`). On launch it resolves the server in order: an explicit `unikodo-lsp`
+on your `PATH`, then a cached download, then the matching binary from the repo's
+GitHub releases.
