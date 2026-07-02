@@ -11,14 +11,15 @@ export const metadata: Metadata = {
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string }>;
 }) {
   const sp = await searchParams;
   const initialQuery = typeof sp.q === "string" ? sp.q : "";
+  const initialCategory = typeof sp.cat === "string" ? sp.cat : "";
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-8 sm:px-6">
-      <Browser initialQuery={initialQuery} />
+      <Browser initialQuery={initialQuery} initialCategory={initialCategory} />
     </div>
   );
 }

@@ -20,6 +20,12 @@ export interface SearchEntry {
   a: boolean;
   /** unicode-math category (friendly), if any */
   mc: string | null;
+  /** curated semantic category tags (e.g. "Arrows", "Greek"); a glyph may have several */
+  ct: string[];
+  /** letter style code (bb/frak/scr/tt/sans/bf/it/bfit/…), letters only */
+  st: string | null;
+  /** letter script ("Latin" | "Greek" | "Hebrew" | "Digit"), letters only */
+  sr: string | null;
 }
 
 let cache: SearchEntry[] | null = null;

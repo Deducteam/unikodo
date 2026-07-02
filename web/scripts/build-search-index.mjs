@@ -6,7 +6,8 @@
 //
 //   s  slug            v  value (glyph)        n  primary (familiar) name
 //   u  unicode name    b  block               c  primary code point
-//   sc schemes[]       a  isAscii
+//   sc schemes[]       a  isAscii              mc unicode-math class (friendly)
+//   ct category tags[] st letter style         sr letter script
 
 import fs from "node:fs";
 import path from "node:path";
@@ -46,6 +47,118 @@ const MATH_CATEGORY = {
   mathover: "Accents",
   mathunder: "Accents",
 };
+
+// ---------------------------------------------------------------------------
+// Curated semantic categories. A glyph may carry several (arrows∩relations,
+// set∩relations, shapes∩binops); ~300 of ~2850 are multi-tagged. Predicates
+// read the unicode-math class (folded to `mc` above), the Unicode block, the
+// Unicode name, and the glyph itself — never the naming scheme, which is how a
+// symbol is written, not what it is. Two families:
+//   Letters  (mathalpha, plus the styled digits) — split by *style* + *script*.
+//   Symbols  (everything else) — Arrows, Relations, Set & Logic, Big operators,
+//            Binary ops, Delimiters, Accents, Shapes, Punctuation, Ordinary.
+
+// A letter's style, read from its Unicode name. The alphabet-defining styles
+// (double-struck, fraktur, script, monospace) win over weight/slope so e.g.
+// "BOLD SCRIPT CAPITAL A" is script, not bold.
+function styleOf(name) {
+  if (name.includes("DOUBLE-STRUCK")) return "bb";
+  if (name.includes("FRAKTUR") || name.includes("BLACK-LETTER")) return "frak";
+  if (name.includes("SCRIPT")) return "scr";
+  if (name.includes("MONOSPACE")) return "tt";
+  const sans = name.includes("SANS-SERIF");
+  const bold = name.includes("BOLD");
+  const ital = name.includes("ITALIC");
+  if (sans) return bold && ital ? "bfitsans" : bold ? "bfsans" : ital ? "itsans" : "sans";
+  if (bold && ital) return "bfit";
+  if (bold) return "bf";
+  if (ital) return "it";
+  return "up";
+}
+
+// A letter's script/alphabet. The Mathematical Alphanumeric letters are named
+// e.g. "MATHEMATICAL BOLD SMALL ALPHA" — no "GREEK" token — so Greek and Hebrew
+// are also matched by their letter names.
+const GREEK_NAMES =
+  /\b(ALPHA|BETA|GAMMA|DELTA|EPSILON|ZETA|ETA|THETA|IOTA|KAPPA|LAMDA|LAMBDA|MU|NU|XI|OMICRON|PI|RHO|SIGMA|TAU|UPSILON|PHI|CHI|PSI|OMEGA|DIGAMMA|NABLA)\b/;
+const HEBREW_NAMES = /\b(ALEF|ALEPH|BET|GIMEL|DALET)\b/;
+function scriptOf(name) {
+  if (name.includes("GREEK") || GREEK_NAMES.test(name)) return "Greek";
+  if (name.includes("HEBREW") || HEBREW_NAMES.test(name)) return "Hebrew";
+  if (name.includes("DIGIT")) return "Digit";
+  return "Latin";
+}
+
+// Set-theory & logic: a curated glyph set (covers the operators whose names are
+// ambiguous, e.g. the logic gates ⊻⊼⊽) plus name keywords for the rest.
+const SETLOGIC_CHARS = new Set(
+  Array.from(
+    "∈∉∊∋∌∍⊂⊃⊄⊅⊆⊇⊈⊉⊊⊋⊏⊐⊑⊒⊓⊔∪∩⋃⋂⨆⨅⊎∀∃∄∅¬∧∨⋀⋁⊻⊼⊽⊤⊥⊢⊣⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯∴∵∁⫫",
+  ),
+);
+const SETLOGIC_KW = [
+  "ELEMENT OF", "CONTAINS AS MEMBER", "SUBSET", "SUPERSET", "UNION",
+  "INTERSECTION", "FOR ALL", "THERE EXISTS", "EMPTY SET", "LOGICAL AND",
+  "LOGICAL OR", "TURNSTILE", "MODELS", "TACK", "NOT SIGN", "COMPLEMENT",
+  "BECAUSE", "THEREFORE", "FORCES", "N-ARY UNION", "N-ARY INTERSECTION",
+];
+const SHAPE_KW = ["SQUARE", "TRIANGLE", "CIRCLE", "DIAMOND", "LOZENGE", "STAR",
+  "PENTAGON", "HEXAGON", "RHOMBUS", "ELLIPSE", "PARALLELOGRAM"];
+const SHAPE_BLOCKS = new Set(["Geometric Shapes", "Geometric Shapes Extended"]);
+// Reject operators/relations that merely embed a shape word, e.g. √ SQUARE ROOT,
+// ⊏ SQUARE IMAGE OF, ≛ STAR EQUALS, ⋆ STAR OPERATOR, ⊛ CIRCLED ...
+const SHAPE_EXCLUDE =
+  /CIRCLED|SQUARED|ROOT|IMAGE OF|ORIGINAL OF|EQUALS|OPERATOR|MULTIPLICATION|SUBSET/;
+const PUNCT_KW = ["COMMA", "SEMICOLON", "COLON", "ELLIPSIS", "FULL STOP",
+  "PERIOD", "QUESTION MARK", "EXCLAMATION", "INTERROBANG", "MIDDLE DOT", "PRIME",
+  "ASTERISM", "LEADER", "DASH", "HYPHEN", "QUOTATION", "PER MILLE",
+  "PER TEN THOUSAND", "PILCROW", "REFERENCE MARK"];
+
+// Compute the category tags (+ style/script for letters) for one glyph.
+// `name` is the upper-case Unicode name; `mc` the friendly class; `block` the
+// Unicode block name (may be null).
+function classify(value, name, mc, block) {
+  const cat = [];
+  if (mc === "Alphabetic" || name.includes("DIGIT")) {
+    const st = styleOf(name);
+    const sr = scriptOf(name);
+    if (sr === "Greek") cat.push("Greek");
+    if (sr === "Digit") cat.push("Numerals");
+    if (st === "bb") cat.push("Blackboard");
+    if (st === "frak") cat.push("Fraktur");
+    if (st === "scr") cat.push("Script");
+    if (sr === "Latin" && st !== "bb" && st !== "frak" && st !== "scr")
+      cat.push("Styled Latin");
+    if (cat.length === 0) cat.push("Styled Latin"); // Hebrew letterlikes, etc.
+    // "Alphabetic" is the always-visible *base* category; the specific tags
+    // above (Greek / Blackboard / …) are refinements shown once it's selected.
+    cat.unshift("Alphabetic");
+    return { cat, st, sr };
+  }
+  const isArrow =
+    name.includes("ARROW") || name.includes("HARPOON") ||
+    (block !== null && block.includes("Arrow"));
+  if (isArrow) cat.push("Arrows");
+  if (
+    Array.from(value).some((c) => SETLOGIC_CHARS.has(c)) ||
+    SETLOGIC_KW.some((k) => name.includes(k))
+  )
+    cat.push("Set & Logic");
+  if (mc === "Relations" && !isArrow) cat.push("Relations");
+  if (mc === "Operators") cat.push("Big operators");
+  if (mc === "Binary operators") cat.push("Binary ops");
+  if (mc === "Delimiters") cat.push("Delimiters");
+  if (mc === "Accents") cat.push("Accents");
+  if (
+    (block !== null && SHAPE_BLOCKS.has(block)) ||
+    (SHAPE_KW.some((k) => name.includes(k)) && !SHAPE_EXCLUDE.test(name))
+  )
+    cat.push("Shapes");
+  if (mc === "Punctuation" || PUNCT_KW.some((k) => name.includes(k)))
+    cat.push("Punctuation");
+  if (cat.length === 0) cat.push("Ordinary");
+  return { cat, st: null, sr: null };
+}
 
 function lookupBlock(cp) {
   let lo = 0,
@@ -92,6 +205,15 @@ for (const [value, entries] of groups) {
     entries.find((e) => e.scheme === "unicode-math" && e.class)?.class ??
     entries.find((e) => e.class)?.class ??
     null;
+  const mc = cls ? MATH_CATEGORY[cls] ?? null : null;
+
+  // For categorisation, use the upper-case Unicode name (falling back to a
+  // scheme description) and the first code point's block — available even for
+  // the few multi-code-point glyphs that don't get a stored `u`/`b`.
+  const desc = entries.find((e) => e.description)?.description ?? "";
+  const nameForCat = (names[String(cp)] ?? desc).toUpperCase();
+  const { cat, st, sr } = classify(value, nameForCat, mc, lookupBlock(cp));
+
   index.push({
     s: slug,
     v: value,
@@ -101,7 +223,10 @@ for (const [value, entries] of groups) {
     c: single ? cp : null,
     sc: schemes,
     a: entries[0].ascii,
-    mc: cls ? MATH_CATEGORY[cls] ?? null : null,
+    mc,
+    ct: cat,
+    st,
+    sr,
   });
 }
 

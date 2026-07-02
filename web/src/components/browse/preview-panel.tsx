@@ -9,11 +9,8 @@ import { SchemeBadge } from "@/components/scheme-badge";
 import { CopyButton } from "@/components/copy-button";
 import { buttonVariants } from "@/components/ui/button";
 import { CornerMarkers } from "@/components/andromeda/corner-markers";
+import { codePoints } from "@/lib/utils";
 import type { SearchEntry } from "@/lib/search";
-
-function usv(cp: number | null) {
-  return cp == null ? "—" : `U+${cp.toString(16).toUpperCase().padStart(4, "0")}`;
-}
 
 export function PreviewPanel({ entry }: { entry: SearchEntry | null }) {
   if (!entry) {
@@ -39,14 +36,18 @@ export function PreviewPanel({ entry }: { entry: SearchEntry | null }) {
 
       <div className="space-y-4 p-4">
         <div>
-          <div className="break-words text-[15px] text-ink">{entry.n}</div>
+          <div className="text-[15px] tabular-nums text-ink">
+            {codePoints(entry.s)}
+          </div>
           {entry.u && (
-            <div className="mt-0.5 text-[12px] text-ink-muted">{entry.u}</div>
+            <div className="mt-0.5 break-words text-[12px] text-ink-muted">
+              {entry.u}
+            </div>
           )}
         </div>
 
         <dl className="space-y-1.5 text-[12px]">
-          <Row term="Code point" value={usv(entry.c)} mono />
+          <Row term="Categories" value={entry.ct.join(" · ")} />
           <Row term="Block" value={entry.b ?? "—"} />
           <Row term="Class" value={entry.mc ?? "—"} />
           <Row term="ASCII" value={entry.a ? "Yes" : "No"} />
