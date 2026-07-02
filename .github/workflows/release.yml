@@ -74,14 +74,11 @@ jobs:
             *)         bin="unikodo-lsp";     asset="unikodo-lsp-${{ matrix.target }}.gz" ;;
           esac
           gzip -c "target/${{ matrix.target }}/release/$bin" > "$asset"
-          shasum -a 256 "$asset" > "$asset.sha256"
           echo "ASSET=$asset" >> "$GITHUB_ENV"
 
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          files: |
-            ${{ env.ASSET }}
-            ${{ env.ASSET }}.sha256
+          files: ${{ env.ASSET }}
           fail_on_unmatched_files: true
