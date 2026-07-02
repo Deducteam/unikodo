@@ -81,6 +81,19 @@ export function scoreEntry(e: SearchEntry, q: string): number {
 
   if (block.includes(q)) score = Math.max(score, 80);
 
+  // Curated category tags (e.g. "arrows", "greek", "set & logic") let a category
+  // name surface its members — including styled letters whose Unicode name lacks
+  // the word (bold Greek, say). Exact match ranks well; prefix only for longer
+  // queries so short ones like "s" don't drag in every Shape/Script glyph.
+  for (const tag of e.ct) {
+    const t = tag.toLowerCase();
+    if (t === q) {
+      score = Math.max(score, 260);
+      break;
+    }
+    if (q.length >= 3 && t.startsWith(q)) score = Math.max(score, 150);
+  }
+
   // Shorter names rank a touch higher among equal-tier matches.
   if (score > 0) score += Math.max(0, 40 - name.length);
   return score;

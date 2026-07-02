@@ -112,6 +112,9 @@ export default async function SymbolPage({
         </Panel>
 
         <div className="min-w-0">
+          <div className="mb-1.5 text-[12px] font-medium tabular-nums text-ink-faint">
+            {entry.usv}
+          </div>
           <h1 className="text-balance text-2xl font-semibold leading-tight tracking-tight text-ink sm:text-3xl">
             {entry.displayName}
           </h1>

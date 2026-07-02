@@ -89,7 +89,7 @@ Settings reach the server via `initializationOptions`, and live updates via
 | `dedupe` | `true` | Collapse identical completions (same name + character) from multiple schemes; the first by `enabledSchemes` order wins. |
 
 In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii` /
-`unikodo.prefixes`. In **Zed**, put them under `lsp.unikodo.initialization_options`
+`unikodo.triggers`. In **Zed**, put them under `lsp.unikodo.initialization_options`
 in your settings. For a raw LSP client, pass them as `initializationOptions` at
 initialize.
 
