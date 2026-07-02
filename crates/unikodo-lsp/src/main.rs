@@ -9,20 +9,20 @@
 //! [`Config`]).
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::RwLock;
+use std::sync::{PoisonError, RwLock};
 
 use dashmap::DashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use unikodo_core::{complete_in, name_chars, scheme, schemes, Symbol, UNICODE, UNICODE_MATH};
+use unikodo_core::{complete_in, name_chars, scheme, Symbol, UNICODE, UNICODE_MATH};
 
 /// User-configurable settings, supplied via `initializationOptions` at startup or
 /// `workspace/didChangeConfiguration` later (optionally nested under a `unikodo`
 /// key).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase")]
 struct Config {
     /// Scheme ids to offer completions from, e.g. `["unicode-math", "latex"]`.
@@ -59,12 +59,24 @@ impl Config {
     }
 }
 
-/// Extract a [`Config`] from a settings value, tolerating a `unikodo` wrapper key
-/// and ignoring anything that does not deserialize.
-fn parse_config(value: Option<&Value>) -> Option<Config> {
-    let value = value?;
+/// Merge a settings value onto `base`, tolerating a `unikodo` wrapper key.
+///
+/// Only the keys present in `value` are overwritten — so a client that sends a
+/// partial `workspace/didChangeConfiguration` delta (e.g. just `triggers`) does
+/// not reset every other setting to its default.
+fn merged_config(base: &Config, value: &Value) -> Config {
     let section = value.get("unikodo").unwrap_or(value);
-    serde_json::from_value(section.clone()).ok()
+    let Some(overlay) = section.as_object() else {
+        return base.clone();
+    };
+    let mut merged = match serde_json::to_value(base) {
+        Ok(Value::Object(map)) => map,
+        _ => serde_json::Map::new(),
+    };
+    for (key, val) in overlay {
+        merged.insert(key.clone(), val.clone());
+    }
+    serde_json::from_value(Value::Object(merged)).unwrap_or_else(|_| base.clone())
 }
 
 struct Backend {
@@ -75,10 +87,20 @@ struct Backend {
 }
 
 impl Backend {
+    /// Merge a settings value onto the current config (see [`merged_config`]).
     fn apply_config(&self, value: Option<&Value>) {
-        if let Some(config) = parse_config(value) {
-            *self.config.write().unwrap() = config;
-        }
+        let Some(value) = value else { return };
+        let current = self.config();
+        let merged = merged_config(&current, value);
+        *self.config.write().unwrap_or_else(PoisonError::into_inner) = merged;
+    }
+
+    /// A snapshot of the current config (lock-poison tolerant).
+    fn config(&self) -> Config {
+        self.config
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
 
@@ -86,7 +108,7 @@ impl Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         self.apply_config(params.initialization_options.as_ref());
-        let triggers = trigger_characters(&self.config.read().unwrap());
+        let triggers = trigger_characters(&self.config());
 
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
@@ -99,7 +121,7 @@ impl LanguageServer for Backend {
                 )),
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(triggers),
-                    resolve_provider: Some(false),
+                    resolve_provider: Some(true),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -139,7 +161,7 @@ impl LanguageServer for Backend {
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-        let config = self.config.read().unwrap().clone();
+        let config = self.config();
 
         let items = self
             .documents
@@ -153,14 +175,32 @@ impl LanguageServer for Backend {
             })
         }))
     }
+
+    /// Fill in an item's Markdown `documentation` on demand. Only the item the
+    /// user highlights is resolved, so the completion response itself stays cheap
+    /// even when a bare trigger matches thousands of names.
+    async fn completion_resolve(&self, mut item: CompletionItem) -> Result<CompletionItem> {
+        if item.documentation.is_none() {
+            if let Some(value) = item.data.as_ref().and_then(build_documentation) {
+                item.documentation = Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value,
+                }));
+            }
+        }
+        Ok(item)
+    }
 }
 
-/// The trigger characters to advertise: for each scheme, the last character of its
-/// effective trigger, or its whole name alphabet when it has no trigger. Computed
-/// over all built-in schemes so a scheme enabled later still triggers.
+/// The trigger characters to advertise: for each *enabled* scheme, the last
+/// character of its effective trigger, or its whole name alphabet when it has no
+/// trigger. Restricting to enabled schemes avoids firing completion requests on
+/// characters (e.g. the ASCII digraph alphabet `+ - = . |`) that can only ever
+/// return nothing under the current config.
 fn trigger_characters(config: &Config) -> Vec<String> {
     let mut chars: BTreeSet<char> = BTreeSet::new();
-    for info in schemes() {
+    for id in &config.enabled_schemes {
+        let Some(info) = scheme(id) else { continue };
         let trigger = config.trigger(info.id, info.default_trigger);
         if trigger.is_empty() {
             chars.extend(name_chars(info.id));
@@ -278,29 +318,11 @@ fn completion_item(
 ) -> CompletionItem {
     let typed = format!("{trigger}{}", symbol.name);
     let glyph = symbol.value.clone();
-    let codepoints = symbol
-        .value
-        .chars()
-        .map(|c| format!("U+{:04X}", c as u32))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let class = match symbol.class {
-        Some(c) => format!(", \\{c}"),
-        None => String::new(),
-    };
     let detail = if symbol.description.is_empty() {
         glyph.clone()
     } else {
         format!("{glyph}  {}", symbol.description)
     };
-    let desc_block = if symbol.description.is_empty() {
-        String::new()
-    } else {
-        format!("{}\n\n", symbol.description)
-    };
-    let documentation = format!(
-        "## {glyph}\n\n`{typed}` → `{glyph}`  ({codepoints}{class})\n\n{desc_block}*scheme: {scheme_display}*"
-    );
 
     CompletionItem {
         label: typed.clone(),
@@ -308,12 +330,18 @@ fn completion_item(
             detail: Some(format!("  {glyph}")),
             description: Some(scheme_display.to_string()),
         }),
-        kind: Some(CompletionItemKind::TEXT),
+        kind: Some(CompletionItemKind::VALUE),
         detail: Some(detail),
-        documentation: Some(Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: documentation,
-        })),
+        // `documentation` is reconstructed lazily in `completion_resolve` from
+        // this `data`; formatting Markdown for every candidate here is the hot
+        // completion path's biggest cost (see `build_documentation`).
+        data: Some(item_data(
+            &glyph,
+            &typed,
+            symbol.description,
+            symbol.class,
+            scheme_display,
+        )),
         filter_text: Some(typed.clone()),
         sort_text: Some(symbol.name.clone()),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
@@ -324,6 +352,53 @@ fn completion_item(
     }
 }
 
+/// The small payload stashed on a completion item's `data`, from which
+/// [`completion_resolve`] rebuilds its `documentation` on demand.
+fn item_data(glyph: &str, typed: &str, desc: &str, class: Option<&str>, scheme: &str) -> Value {
+    #[derive(Serialize)]
+    struct ItemData<'a> {
+        glyph: &'a str,
+        typed: &'a str,
+        desc: &'a str,
+        class: Option<&'a str>,
+        scheme: &'a str,
+    }
+    serde_json::to_value(ItemData {
+        glyph,
+        typed,
+        desc,
+        class,
+        scheme,
+    })
+    .unwrap_or(Value::Null)
+}
+
+/// Rebuild an item's Markdown `documentation` from the `data` stashed on it by
+/// [`completion_item`] / [`codepoint_item`]. Called from `completion_resolve`, so
+/// the hot completion path never formats docs for candidates that go unshown.
+fn build_documentation(data: &Value) -> Option<String> {
+    let glyph = data.get("glyph")?.as_str()?;
+    let typed = data.get("typed")?.as_str()?;
+    let scheme = data.get("scheme")?.as_str()?;
+    let desc = data.get("desc").and_then(Value::as_str).unwrap_or("");
+    let class = data.get("class").and_then(Value::as_str);
+
+    let codepoints = glyph
+        .chars()
+        .map(|c| format!("U+{:04X}", c as u32))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let class = class.map(|c| format!(", \\{c}")).unwrap_or_default();
+    let desc_block = if desc.is_empty() {
+        String::new()
+    } else {
+        format!("{desc}\n\n")
+    };
+    Some(format!(
+        "## {glyph}\n\n`{typed}` → `{glyph}`  ({codepoints}{class})\n\n{desc_block}*scheme: {scheme}*"
+    ))
+}
+
 /// Completion item for the dynamic `unicode` scheme: `hex` (the text after the
 /// trigger) parsed as a code point. `None` if it is not a valid scalar value.
 fn codepoint_item(
@@ -332,6 +407,10 @@ fn codepoint_item(
     scheme_display: &str,
     range: Range,
 ) -> Option<CompletionItem> {
+    // Reject empty or non-hex input (e.g. the stray `+` in `U++41`).
+    if hex.is_empty() || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
     let cp = u32::from_str_radix(hex, 16).ok()?;
     let ch = char::from_u32(cp)?;
     let label = format!("{trigger}{hex}");
@@ -343,15 +422,10 @@ fn codepoint_item(
             detail: Some(format!("  {glyph}")),
             description: Some(scheme_display.to_string()),
         }),
-        kind: Some(CompletionItemKind::TEXT),
+        kind: Some(CompletionItemKind::VALUE),
         detail: Some(format!("{glyph}  U+{cp:04X}")),
-        documentation: Some(Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: format!(
-                "## {glyph}\n\n`{label}` → `{glyph}`  (U+{cp:04X})\n\n*scheme: {scheme_display}*"
-            ),
-        })),
-        filter_text: Some(label),
+        data: Some(item_data(&glyph, &label, "", None, scheme_display)),
+        filter_text: Some(label.clone()),
         sort_text: Some(format!("{cp:08X}")),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range,
@@ -451,6 +525,8 @@ mod tests {
     fn unicode_codepoint_invalid_or_empty_yields_nothing() {
         assert!(completions_at("U+zz", pos(0, 4), &cfg(&["unicode"])).is_none());
         assert!(completions_at("U+", pos(0, 2), &cfg(&["unicode"])).is_none());
+        // A stray sign is not a hex digit.
+        assert!(completions_at("U++41", pos(0, 5), &cfg(&["unicode"])).is_none());
     }
 
     #[test]
@@ -559,7 +635,7 @@ mod tests {
             "includeAscii": true,
             "triggers": { "typst": ";" }
         });
-        let c = parse_config(Some(&v)).unwrap();
+        let c = merged_config(&Config::default(), &v);
         assert_eq!(c.enabled_schemes, vec!["unicode-math", "typst"]);
         assert!(c.include_ascii);
         assert_eq!(c.trigger("typst", "\\"), ";");
@@ -570,8 +646,46 @@ mod tests {
     #[test]
     fn config_parses_under_unikodo_key() {
         let v = serde_json::json!({"unikodo": {"enabledSchemes": ["typst"]}});
-        let c = parse_config(Some(&v)).unwrap();
+        let c = merged_config(&Config::default(), &v);
         assert_eq!(c.enabled_schemes, vec!["typst"]);
         assert!(!c.include_ascii);
+    }
+
+    #[test]
+    fn partial_update_preserves_untouched_settings() {
+        // A delta that sets only `triggers` must not reset the other settings.
+        let base = Config {
+            enabled_schemes: vec!["unicode-math".to_string(), "typst".to_string()],
+            include_ascii: true,
+            triggers: BTreeMap::new(),
+            dedupe: false,
+        };
+        let merged = merged_config(&base, &serde_json::json!({ "triggers": { "typst": ";" } }));
+        assert_eq!(merged.enabled_schemes, base.enabled_schemes);
+        assert!(merged.include_ascii);
+        assert!(!merged.dedupe);
+        assert_eq!(merged.trigger("typst", "\\"), ";");
+    }
+
+    #[test]
+    fn items_defer_documentation_to_resolve() {
+        // The completion response omits `documentation`; resolve rebuilds it from `data`.
+        let items = completions_at("\\leq", pos(0, 4), &cfg(&["unicode-math"])).expect("items");
+        let item = find(&items, "\\leq");
+        assert!(item.documentation.is_none());
+        let doc = build_documentation(item.data.as_ref().expect("data")).expect("documentation");
+        assert!(doc.contains('≤'));
+        assert!(doc.contains("scheme: unicode-math"));
+    }
+
+    #[test]
+    fn trigger_characters_only_for_enabled_schemes() {
+        // Default (unicode-math) advertises the backslash, not the ascii alphabet.
+        let base = trigger_characters(&cfg(&["unicode-math"]));
+        assert!(base.contains(&"\\".to_string()));
+        assert!(!base.contains(&"=".to_string()));
+        // Enabling ascii brings in its digraph characters.
+        let with_ascii = trigger_characters(&cfg(&["unicode-math", "ascii"]));
+        assert!(with_ascii.contains(&"=".to_string()));
     }
 }

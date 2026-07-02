@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 use codex::Def;
@@ -58,6 +58,20 @@ pub fn symbols() -> &'static [Symbol] {
         .as_slice()
 }
 
+/// Symbols grouped by scheme id, built once. Lets `complete_in` and `name_chars`
+/// touch only the relevant scheme instead of rescanning the whole table on every
+/// keystroke. Each scheme's `Vec` preserves the order from [`symbols`].
+fn by_scheme() -> &'static HashMap<&'static str, Vec<&'static Symbol>> {
+    static BY_SCHEME: OnceLock<HashMap<&'static str, Vec<&'static Symbol>>> = OnceLock::new();
+    BY_SCHEME.get_or_init(|| {
+        let mut map: HashMap<&'static str, Vec<&'static Symbol>> = HashMap::new();
+        for symbol in symbols() {
+            map.entry(symbol.scheme).or_default().push(symbol);
+        }
+        map
+    })
+}
+
 /// Completion candidates within a single scheme for the given `query` — the
 /// already-extracted name fragment, without any trigger prefix. Matches names in
 /// `scheme_id` that start with `query`, preserving insertion order.
@@ -69,21 +83,31 @@ pub fn complete_in<'a>(
     query: &'a str,
     include_ascii: bool,
 ) -> impl Iterator<Item = &'static Symbol> + 'a {
-    symbols().iter().filter(move |s| {
-        s.scheme == scheme_id && (include_ascii || !s.is_ascii()) && s.name.starts_with(query)
-    })
+    by_scheme()
+        .get(scheme_id)
+        .into_iter()
+        .flatten()
+        .copied()
+        .filter(move |s| (include_ascii || !s.is_ascii()) && s.name.starts_with(query))
 }
 
-/// The set of characters appearing in the names of `scheme_id`.
+/// The set of characters appearing in the names of `scheme_id`, memoized.
 ///
 /// For operator-triggered schemes this is the alphabet an editor integration uses
-/// to find the token under the cursor (e.g. `=`, `>`, `-`).
-pub fn name_chars(scheme_id: &str) -> BTreeSet<char> {
-    symbols()
-        .iter()
-        .filter(|s| s.scheme == scheme_id)
-        .flat_map(|s| s.name.chars())
-        .collect()
+/// to find the token under the cursor (e.g. `=`, `>`, `-`). Returns an empty set
+/// for an unknown scheme.
+pub fn name_chars(scheme_id: &str) -> &'static BTreeSet<char> {
+    static NAME_CHARS: OnceLock<HashMap<&'static str, BTreeSet<char>>> = OnceLock::new();
+    static EMPTY: BTreeSet<char> = BTreeSet::new();
+    NAME_CHARS
+        .get_or_init(|| {
+            by_scheme()
+                .iter()
+                .map(|(&id, syms)| (id, syms.iter().flat_map(|s| s.name.chars()).collect()))
+                .collect()
+        })
+        .get(scheme_id)
+        .unwrap_or(&EMPTY)
 }
 
 /// Parse a single `\UnicodeMathSymbol{"HEX}{\macro}{\class}{description}%` line

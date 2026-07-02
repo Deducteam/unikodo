@@ -45,5 +45,8 @@ fn main() {
         "symbols": symbols,
     });
 
-    println!("{}", serde_json::to_string(&doc).expect("serialize symbol DB"));
+    println!(
+        "{}",
+        serde_json::to_string(&doc).expect("serialize symbol DB")
+    );
 }
