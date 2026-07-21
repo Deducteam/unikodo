@@ -136,6 +136,14 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
+        // tower-lsp's serve loop only returns on stdin EOF, so a client that
+        // sends `exit` without closing our stdin would leave the process
+        // behind. Shutdown is always teardown: give the response (and the
+        // client's follow-up `exit`) a moment to settle, then exit ourselves.
+        tokio::spawn(async {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            std::process::exit(0);
+        });
         Ok(())
     }
 
@@ -447,6 +455,11 @@ async fn main() {
     });
 
     Server::new(stdin, stdout, socket).serve(service).await;
+
+    // tokio's stdin is read on a blocking background thread; if the client sent
+    // `exit` without closing our stdin, dropping the runtime would wait on that
+    // read forever and the process would outlive the editor. Exit explicitly.
+    std::process::exit(0);
 }
 
 #[cfg(test)]
