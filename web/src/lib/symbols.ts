@@ -85,11 +85,14 @@ export interface CharacterEntry {
   displayName: string;
 }
 
-/** Friendly labels for unicode-math math classes. */
+/** Friendly labels for unicode-math math classes. Kept in the same vocabulary
+ * as the browse taxonomy (see web/scripts/build-search-index.mjs): mathop =
+ * the large variable-binding operators ("Binder"), mathbin = the
+ * between-operands signs ("Operator"). */
 export const CLASS_LABELS: Record<string, string> = {
   mathord: "Ordinary",
-  mathop: "Operator",
-  mathbin: "Binary operator",
+  mathop: "Binder",
+  mathbin: "Operator",
   mathrel: "Relation",
   mathopen: "Opening",
   mathclose: "Closing",

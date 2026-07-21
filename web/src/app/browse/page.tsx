@@ -5,7 +5,7 @@ import { Browser } from "@/components/browse/browser";
 export const metadata: Metadata = {
   title: "Symbol browser",
   description:
-    "Browse and search every Unicode symbol unikodo can name, filtered by Unicode block and unicode-math category.",
+    "Browse and search every Unicode symbol unikodo can name — arrows, relations, operators, binders, brackets, shapes, and the styled letter alphabets.",
 };
 
 export default async function BrowsePage({

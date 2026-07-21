@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CaretDown, Check, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { cn, codePoints } from "@/lib/utils";
 import { loadSearchIndex, searchEntries, type SearchEntry } from "@/lib/search";
@@ -15,29 +15,69 @@ const PAGE = 240;
 
 // Curated taxonomy — tags computed at build time (see build-search-index.mjs),
 // a genuine property of the symbol, not the scheme that names it. A flat set of
-// always-visible *base* categories; selecting one reveals refinements below it.
-// "Alphabetic" is one base pill (the whole ~1,100-glyph letter family); its
-// breakdown — named sub-types + Style/Script axes — appears only once selected.
+// always-visible base categories; selecting "Alphanumeric" reveals the letter
+// Script/Case/Style axes and "Shapes" a geometric Kind axis (both animated)
+// beneath the pill row.
 const BASE_CATS = [
-  "Alphabetic", "Arrows", "Relations", "Set & Logic", "Big operators",
-  "Binary ops", "Delimiters", "Accents", "Shapes", "Punctuation", "Ordinary",
-];
-const LETTER_SUBCATS = [
-  "Greek", "Blackboard", "Fraktur", "Script", "Styled Latin", "Numerals",
+  "Alphanumeric", "Arrows", "Relations", "Operators", "Binders",
+  "Brackets", "Shapes", "Punctuation", "Miscellaneous",
 ];
 
-// Letter style/script codes → display label + a stable display order.
-const STYLE_LABELS: Record<string, string> = {
-  up: "Upright", it: "Italic", bf: "Bold", bfit: "Bold Italic",
-  sans: "Sans", itsans: "Sans Italic", bfsans: "Sans Bold",
-  bfitsans: "Sans Bold Italic", tt: "Mono", bb: "Double-struck",
-  frak: "Fraktur", scr: "Script",
+// Shared ?cat= links minted under the previous taxonomy keep working. Retired
+// categories with no single successor ("Set & Logic", "Accents") fall through
+// to no category at all.
+const LEGACY_CATS: Record<string, string> = {
+  "Alphabetic": "Alphanumeric",
+  "Big operators": "Binders",
+  "Binary ops": "Operators",
+  "Delimiters": "Brackets",
+  "Ordinary": "Miscellaneous",
 };
-const STYLE_ORDER = Object.keys(STYLE_LABELS);
+
+// Letter script codes → display label + a stable display order. Single-select:
+// a letter belongs to exactly one script.
 const SCRIPT_LABELS: Record<string, string> = {
-  Latin: "Latin", Greek: "Greek", Hebrew: "Hebrew", Digit: "Digits",
+  Latin: "Latin", Greek: "Greek", Hebrew: "Hebrew", Digit: "Numerals",
 };
 const SCRIPT_ORDER = Object.keys(SCRIPT_LABELS);
+
+// Letter styles decomposed into primitive, composable tags. The dataset stores
+// one combined code per glyph (bfit = bold italic, itsans = italic sans, …); the
+// browser exposes the primitives and AND-combines a multi-selection, so
+// "Bold Italic" is Bold + Italic rather than its own pill. "Upright" is the slope
+// axis for the *roman* letters only (serif/sans): up = not italic. The distinct
+// alphabets (Double-struck, Fraktur, Script, Mono) are NOT upright — pick them by
+// their own chip. Fraktur & Script keep a bold variant (bffrak/bfscr), so bold
+// blackletter/script reads as Bold + Fraktur/Script, never as Upright.
+const STYLE_TAGS: Record<string, string[]> = {
+  up: ["up"], it: ["it"], bf: ["bf", "up"], bfit: ["bf", "it"],
+  sans: ["sans", "up"], itsans: ["sans", "it"], bfsans: ["sans", "bf", "up"],
+  bfitsans: ["sans", "bf", "it"],
+  tt: ["tt"], bb: ["bb"], frak: ["frak"], scr: ["scr"],
+  bffrak: ["frak", "bf"], bfscr: ["scr", "bf"],
+};
+const STYLE_FACETS: [string, string][] = [
+  ["up", "Upright"], ["it", "Italic"], ["bf", "Bold"], ["sans", "Sans"],
+  ["tt", "Mono"], ["bb", "Double-struck"], ["frak", "Fraktur"], ["scr", "Script"],
+];
+
+// Letter case axis — single-select (a glyph is one or the other, or caseless).
+const CASE_LABELS: Record<string, string> = { u: "Upper", l: "Lower" };
+const CASE_ORDER = Object.keys(CASE_LABELS);
+
+// Shape kind axis — single-select, revealed when "Shapes" is picked. The `sk`
+// codes are already display labels, so the map is an identity (keeps RefineFacet's
+// [code, count] + labels shape).
+const SHAPE_KIND_LABELS: Record<string, string> = {
+  Ellipses: "Ellipses", Triangles: "Triangles",
+  Quadrilaterals: "Quadrilaterals", Other: "Other",
+};
+const SHAPE_KIND_ORDER = Object.keys(SHAPE_KIND_LABELS);
+const styleTags = (st: string | null) => (st ? STYLE_TAGS[st] ?? [] : []);
+const hasStyles = (st: string | null, tags: string[]) => {
+  const owned = styleTags(st);
+  return tags.every((t) => owned.includes(t));
+};
 
 // Lead the default (unfiltered) grid with the curated showcase glyphs, in their
 // curated order, then everything else in its existing (code-point) order. Keeps
@@ -60,10 +100,6 @@ const count = <T,>(items: T[], key: (t: T) => string | null) => {
   }
   return c;
 };
-const inOrder = (counts: Record<string, number>, order: string[]) =>
-  order.filter((k) => counts[k]).map((k) => [k, counts[k]] as [string, number]);
-const byCount = (a: [string, number], b: [string, number]) =>
-  b[1] - a[1] || a[0].localeCompare(b[0]);
 
 export function Browser({
   initialQuery = "",
@@ -74,49 +110,44 @@ export function Browser({
 }) {
   const [index, setIndex] = React.useState<SearchEntry[] | null>(null);
   const [query, setQuery] = React.useState(initialQuery);
-  const [category, setCategory] = React.useState(
-    BASE_CATS.includes(initialCategory) ? initialCategory : "",
-  );
-  const [subType, setSubType] = React.useState(""); // letter sub-category
-  const [style, setStyle] = React.useState("");
-  const [script, setScript] = React.useState("");
-  const [block, setBlock] = React.useState("");
-  const [mathClass, setMathClass] = React.useState("");
-  const [includeAscii, setIncludeAscii] = React.useState(false);
+  const [category, setCategory] = React.useState(() => {
+    const cat = LEGACY_CATS[initialCategory] ?? initialCategory;
+    return BASE_CATS.includes(cat) ? cat : "";
+  });
+  const [script, setScript] = React.useState(""); // single-select letter script
+  const [styles, setStyles] = React.useState<string[]>([]); // multi-select style
+  const [caseSel, setCaseSel] = React.useState(""); // single-select letter case
+  const [shapeKind, setShapeKind] = React.useState(""); // single-select shape kind
   const [visible, setVisible] = React.useState(PAGE);
   const [focused, setFocused] = React.useState<SearchEntry | null>(null);
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     loadSearchIndex().then(setIndex);
   }, []);
 
-  const letterMode = category === "Alphabetic";
+  const letterMode = category === "Alphanumeric";
+  const shapeMode = category === "Shapes";
 
-  // Switch the base category, dropping every refinement — they belong to the
-  // previous category's context.
+  // Switch the base category, dropping the per-category refinements — they belong
+  // to the previous category's context.
   const selectCategory = React.useCallback((c: string) => {
     setCategory((cur) => (cur === c ? "" : c));
-    setSubType("");
-    setStyle("");
     setScript("");
-    setBlock("");
-    setMathClass("");
+    setStyles([]);
+    setCaseSel("");
+    setShapeKind("");
   }, []);
 
-  // Switch the letter sub-type (Greek / Blackboard / …), resetting the finer
-  // Style + Script axes so they re-evaluate within the new sub-type.
-  const selectSubType = React.useCallback((c: string) => {
-    setSubType((cur) => (cur === c ? "" : c));
-    setStyle("");
-    setScript("");
+  // Toggle one primitive style tag in the multi-selection.
+  const toggleStyle = React.useCallback((code: string) => {
+    setStyles((cur) =>
+      cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code],
+    );
   }, []);
 
-  // Base set = the ASCII toggle applied. Base-category counts live here so the
-  // pills report how many symbols each holds under the current toggle.
-  const base = React.useMemo(() => {
-    if (!index) return [];
-    return includeAscii ? index : index.filter((e) => !e.a);
-  }, [index, includeAscii]);
+  // ASCII characters are part of the catalogue by default — no toggle.
+  const base = React.useMemo(() => index ?? [], [index]);
 
   const categoryCounts = React.useMemo(
     () => count(base.flatMap((e) => e.ct), (t) => t),
@@ -129,52 +160,60 @@ export function Browser({
     [base, category],
   );
 
-  // Refine options, scoped so their counts stay honest. Letter facets exclude
-  // their own axis (standard faceted search) so counts reflect the other picks.
+  // Letter facets, scoped so their counts stay honest. Each axis excludes its
+  // own selection (standard faceted search) so counts reflect the other picks.
   const refine = React.useMemo(() => {
-    if (letterMode) {
-      const bySub = subType
-        ? inCategory.filter((e) => e.ct.includes(subType))
-        : inCategory;
-      const forStyle = script ? bySub.filter((e) => e.sr === script) : bySub;
-      const forScript = style ? bySub.filter((e) => e.st === style) : bySub;
-      const forType = inCategory.filter(
-        (e) => (!style || e.st === style) && (!script || e.sr === script),
-      );
-      const typeCounts: Record<string, number> = {};
-      for (const c of LETTER_SUBCATS)
-        typeCounts[c] = forType.filter((e) => e.ct.includes(c)).length;
+    if (!letterMode) {
       return {
-        types: typeCounts,
-        styles: inOrder(count(forStyle, (e) => e.st), STYLE_ORDER),
-        scripts: inOrder(count(forScript, (e) => e.sr), SCRIPT_ORDER),
-        blocks: [] as [string, number][],
-        classes: [] as [string, number][],
+        styles: [] as { code: string; label: string; n: number }[],
+        scripts: [] as [string, number][],
+        cases: [] as [string, number][],
       };
     }
+    const okScript = (e: SearchEntry) => !script || e.sr === script;
+    const okStyles = (e: SearchEntry) => hasStyles(e.st, styles);
+    const okCase = (e: SearchEntry) => !caseSel || e.cs === caseSel;
+
+    // Every axis's counts hold the *other* two axes fixed (faceted search), and
+    // list all their chips — 0-count ones render greyed, never removed, so chips
+    // never shift position as the other axes narrow things.
+    const forStyle = inCategory.filter((e) => okScript(e) && okCase(e));
+    const styleOpts = STYLE_FACETS.map(([code, label]) => {
+      const others = styles.filter((c) => c !== code);
+      const n = forStyle.filter((e) => hasStyles(e.st, [...others, code])).length;
+      return { code, label, n };
+    });
+    const forScript = inCategory.filter((e) => okStyles(e) && okCase(e));
+    const scriptCounts = count(forScript, (e) => e.sr);
+    const forCase = inCategory.filter((e) => okScript(e) && okStyles(e));
+    const caseCounts = count(forCase, (e) => e.cs);
     return {
-      types: {} as Record<string, number>,
-      styles: [] as [string, number][],
-      scripts: [] as [string, number][],
-      blocks: Object.entries(count(inCategory, (e) => e.b)).sort(byCount),
-      classes: Object.entries(count(inCategory, (e) => e.mc)).sort(byCount),
+      styles: styleOpts,
+      scripts: SCRIPT_ORDER.map((k) => [k, scriptCounts[k] ?? 0] as [string, number]),
+      cases: CASE_ORDER.map((k) => [k, caseCounts[k] ?? 0] as [string, number]),
     };
-  }, [inCategory, letterMode, subType, style, script]);
+  }, [inCategory, letterMode, script, styles, caseSel]);
+
+  // Shape kinds — a single axis, so no cross-faceting: just count each geometric
+  // family within the Shapes category. Every kind stays listed; empty ones grey.
+  const shapeKindOpts = React.useMemo(() => {
+    if (!shapeMode) return [] as [string, number][];
+    const counts = count(inCategory, (e) => e.sk);
+    return SHAPE_KIND_ORDER.map((k) => [k, counts[k] ?? 0] as [string, number]);
+  }, [inCategory, shapeMode]);
 
   const filtered = React.useMemo(() => {
     let list = inCategory;
     if (letterMode) {
-      if (subType) list = list.filter((e) => e.ct.includes(subType));
-      if (style) list = list.filter((e) => e.st === style);
       if (script) list = list.filter((e) => e.sr === script);
-    } else {
-      if (block) list = list.filter((e) => e.b === block);
-      if (mathClass) list = list.filter((e) => e.mc === mathClass);
+      if (styles.length) list = list.filter((e) => hasStyles(e.st, styles));
+      if (caseSel) list = list.filter((e) => e.cs === caseSel);
     }
+    if (shapeMode && shapeKind) list = list.filter((e) => e.sk === shapeKind);
     if (query.trim()) list = searchEntries(list, query, 6000);
     else if (!category) list = featuredFirst(list);
     return list;
-  }, [inCategory, letterMode, subType, style, script, block, mathClass, query, category]);
+  }, [inCategory, letterMode, script, styles, caseSel, shapeMode, shapeKind, query, category]);
 
   // Reset pagination + keyboard focus whenever the result set changes.
   const [prevFiltered, setPrevFiltered] = React.useState(filtered);
@@ -198,22 +237,35 @@ export function Browser({
   }, [query, category]);
 
   const hasFilters = Boolean(
-    query.trim() || category || subType || style || script || block || mathClass,
+    query.trim() || category || script || styles.length || caseSel || shapeKind,
   );
   function clearAll() {
     setQuery("");
     setCategory("");
-    setSubType("");
-    setStyle("");
     setScript("");
-    setBlock("");
-    setMathClass("");
+    setStyles([]);
+    setCaseSel("");
+    setShapeKind("");
   }
 
-  // Count of letter sub-types with any members — hide the Type row if it can't
-  // actually branch (e.g. a Script/Style pick left a single sub-type).
-  const liveTypes = LETTER_SUBCATS.filter((c) => refine.types[c]).length;
   const shown = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
+
+  // Infinite scroll: reveal the next page as a sentinel below the grid nears the
+  // viewport. Re-arms on every `visible` change so that if the sentinel is still
+  // in view after a page loads (tall viewport / short page), it keeps filling.
+  React.useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setVisible((v) => v + PAGE);
+      },
+      { rootMargin: "800px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, visible]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -225,8 +277,11 @@ export function Browser({
       </aside>
 
       <div className="min-w-0">
-        {/* ---------------- Filter bar ---------------- */}
-        <div className="mb-5 space-y-3">
+        {/* ---------------- Filter bar ----------------
+            Spacing is per-child (not space-y) so the collapsed refinement
+            wrappers contribute no phantom margins; their gap animates open
+            with the row (the pt-3 inside each overflow-hidden). */}
+        <div className="mb-5">
           {/* Search */}
           <div className="relative">
             <MagnifyingGlass
@@ -236,6 +291,7 @@ export function Browser({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search symbols"
               placeholder="Search by name, code point, or glyph…"
               className="h-10 w-full rounded-sm border border-wire bg-card pl-9 pr-9 text-[13px] text-ink placeholder:text-ink-faint outline-none focus:border-[var(--andromeda-accent-500)]"
             />
@@ -251,113 +307,95 @@ export function Browser({
           </div>
 
           {/* Base category pills */}
-          <PillRow label="Category">
-            {BASE_CATS.map((c) => (
-              <Pill
-                key={c}
-                active={category === c}
-                count={index ? categoryCounts[c] ?? 0 : undefined}
-                disabled={Boolean(index) && !categoryCounts[c]}
-                onClick={() => selectCategory(c)}
-              >
-                {c}
-              </Pill>
-            ))}
-          </PillRow>
-
-          {/* Refinements — only once a base category is selected */}
-          {index && letterMode && (
-            <div className="space-y-2">
-              {liveTypes > 1 && (
-                <PillRow label="Type">
-                  {LETTER_SUBCATS.map((c) => (
-                    <Pill
-                      key={c}
-                      active={subType === c}
-                      count={refine.types[c] ?? 0}
-                      disabled={!refine.types[c]}
-                      onClick={() => selectSubType(c)}
-                    >
-                      {c}
-                    </Pill>
-                  ))}
-                </PillRow>
-              )}
-              <RefineFacet
-                label="Script"
-                options={refine.scripts}
-                labels={SCRIPT_LABELS}
-                value={script}
-                onChange={setScript}
-              />
-              <RefineFacet
-                label="Style"
-                options={refine.styles}
-                labels={STYLE_LABELS}
-                value={style}
-                onChange={setStyle}
-              />
-            </div>
-          )}
-          {index && category && !letterMode && (
-            <PillRow label="Refine">
-              <FacetSelect
-                label="All blocks"
-                value={block}
-                onChange={setBlock}
-                options={refine.blocks}
-              />
-              <FacetSelect
-                label="All classes"
-                value={mathClass}
-                onChange={setMathClass}
-                options={refine.classes}
-              />
-            </PillRow>
-          )}
-
-          {/* ASCII toggle + result count */}
-          <div className="flex flex-wrap items-center gap-2 border-t border-wire-subtle pt-3">
-            <button
-              onClick={() => setIncludeAscii((v) => !v)}
-              title="Include characters whose value is a plain ASCII character"
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[12px] transition-colors",
-                includeAscii
-                  ? "border-wire-bright bg-elevated text-ink"
-                  : "border-wire-subtle bg-card text-ink-muted hover:text-ink",
-              )}
-            >
-              <span
-                className={cn(
-                  "grid size-3 place-items-center rounded-[2px] border",
-                  includeAscii
-                    ? "border-[var(--andromeda-accent-400)] bg-[var(--andromeda-accent-alpha)]"
-                    : "border-wire",
-                )}
-              >
-                {includeAscii && (
-                  <Check size={9} weight="bold" className="text-brand-100" />
-                )}
-              </span>
-              ASCII
-            </button>
-
-            <div className="ml-auto flex items-center gap-3 text-[12px] text-ink-muted">
-              <span className="tabular-nums">
-                {index
-                  ? `${filtered.length.toLocaleString("en-US")} symbols`
-                  : "loading…"}
-              </span>
-              {hasFilters && (
-                <button
-                  onClick={clearAll}
-                  className="flex cursor-pointer items-center gap-1 text-ink-faint hover:text-ink"
+          <div className="mt-3">
+            <PillRow label="Category">
+              {BASE_CATS.map((c) => (
+                <Pill
+                  key={c}
+                  active={category === c}
+                  disabled={Boolean(index) && !categoryCounts[c]}
+                  onClick={() => selectCategory(c)}
                 >
-                  <X size={12} /> clear
-                </button>
-              )}
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
+          </div>
+
+          {/* Letter refinements (Script + Style) — revealed, animated, once
+              "Alphanumeric" is selected. The wrapper stays mounted so the
+              grid-rows height transition can play on open. */}
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+              index && letterMode
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="space-y-2 pt-3">
+                <RefineFacet
+                  label="Script"
+                  options={refine.scripts}
+                  labels={SCRIPT_LABELS}
+                  value={script}
+                  onChange={setScript}
+                />
+                <RefineFacet
+                  label="Case"
+                  options={refine.cases}
+                  labels={CASE_LABELS}
+                  value={caseSel}
+                  onChange={setCaseSel}
+                />
+                <StyleFacet
+                  options={refine.styles}
+                  selected={styles}
+                  onToggle={toggleStyle}
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Shape-kind refinement — revealed, animated, once "Shapes" is
+              selected. Same grid-rows transition as the letter refinements. */}
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+              index && shapeMode
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="pt-3">
+                <RefineFacet
+                  label="Kind"
+                  options={shapeKindOpts}
+                  labels={SHAPE_KIND_LABELS}
+                  value={shapeKind}
+                  onChange={setShapeKind}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Result count + clear */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-wire-subtle pt-3 text-[12px] text-ink-muted">
+            <span className="tabular-nums">
+              {index
+                ? `${filtered.length.toLocaleString("en-US")} symbols`
+                : "loading…"}
+            </span>
+            {hasFilters && (
+              <button
+                onClick={clearAll}
+                className="flex cursor-pointer items-center gap-1 text-ink-faint hover:text-ink"
+              >
+                <X size={12} /> clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -386,18 +424,13 @@ export function Browser({
               ))}
             </div>
 
-            {visible < filtered.length && (
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={() => setVisible((v) => v + PAGE)}
-                  className="cursor-pointer rounded-sm border border-wire bg-card px-5 py-2.5 text-[13px] text-ink-secondary transition-colors hover:border-wire-bright hover:bg-elevated hover:text-ink"
-                >
-                  Load more · showing{" "}
-                  <span className="tabular-nums text-ink">{shown.length}</span> of{" "}
-                  <span className="tabular-nums text-ink">
-                    {filtered.length.toLocaleString("en-US")}
-                  </span>
-                </button>
+            {hasMore && (
+              <div
+                ref={sentinelRef}
+                className="mt-6 flex justify-center py-4 text-[12px] tabular-nums text-ink-faint"
+              >
+                showing {shown.length.toLocaleString("en-US")} of{" "}
+                {filtered.length.toLocaleString("en-US")}…
               </div>
             )}
           </>
@@ -427,13 +460,11 @@ function PillRow({
 function Pill({
   active,
   disabled,
-  count,
   onClick,
   children,
 }: {
   active: boolean;
   disabled?: boolean;
-  count?: number;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -441,9 +472,10 @@ function Pill({
     <button
       type="button"
       disabled={disabled}
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[12px] transition-colors",
+        "inline-flex items-center rounded-sm border px-2.5 py-1 text-[12px] transition-colors",
         disabled
           ? "cursor-not-allowed border-wire-subtle bg-card text-ink-faint opacity-40"
           : active
@@ -451,23 +483,13 @@ function Pill({
             : "cursor-pointer border-wire-subtle bg-card text-ink-muted hover:border-wire hover:text-ink",
       )}
     >
-      <span>{children}</span>
-      {count != null && (
-        <span
-          className={cn(
-            "tabular-nums text-[11px]",
-            active ? "text-ink-secondary" : "text-ink-faint",
-          )}
-        >
-          {count}
-        </span>
-      )}
+      {children}
     </button>
   );
 }
 
-// A letter refine facet (Style / Script) as a labelled pill row. Hidden when it
-// offers no real choice (one option ⇒ nothing to narrow).
+// The letter Script facet — single-select. Every script stays on the axis;
+// those with no members under the current filters are greyed, not removed.
 function RefineFacet({
   label,
   options,
@@ -481,14 +503,14 @@ function RefineFacet({
   value: string;
   onChange: (v: string) => void;
 }) {
-  if (options.length < 2) return null;
+  if (!options.length) return null;
   return (
     <PillRow label={label}>
       {options.map(([code, n]) => (
         <Pill
           key={code}
           active={value === code}
-          count={n}
+          disabled={n === 0 && value !== code}
           onClick={() => onChange(value === code ? "" : code)}
         >
           {labels[code] ?? code}
@@ -498,38 +520,32 @@ function RefineFacet({
   );
 }
 
-function FacetSelect({
-  label,
-  value,
-  onChange,
+// The letter Style facet — multi-select, AND-combined. Every primitive stays on
+// the axis; combinations that would match nothing (e.g. Fraktur + Bold) render
+// greyed and unclickable rather than disappearing, so chips never shift.
+function StyleFacet({
   options,
+  selected,
+  onToggle,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: [string, number][];
+  options: { code: string; label: string; n: number }[];
+  selected: string[];
+  onToggle: (code: string) => void;
 }) {
+  if (!options.length) return null;
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-full appearance-none rounded-sm border border-wire bg-card pl-3 pr-8 text-[12px] text-ink-secondary outline-none focus:border-[var(--andromeda-accent-500)] sm:w-52"
-      >
-        <option value="">
-          {label} ({options.length})
-        </option>
-        {options.map(([name, n]) => (
-          <option key={name} value={name}>
-            {name} ({n})
-          </option>
-        ))}
-      </select>
-      <CaretDown
-        size={13}
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted"
-      />
-    </div>
+    <PillRow label="Style">
+      {options.map((o) => (
+        <Pill
+          key={o.code}
+          active={selected.includes(o.code)}
+          disabled={o.n === 0 && !selected.includes(o.code)}
+          onClick={() => onToggle(o.code)}
+        >
+          {o.label}
+        </Pill>
+      ))}
+    </PillRow>
   );
 }
 

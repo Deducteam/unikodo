@@ -1,4 +1,4 @@
-import { Panel, PanelHeader } from "@/components/andromeda/panel";
+import { Panel } from "@/components/andromeda/panel";
 import { Tag } from "@/components/andromeda/tag";
 import { SchemeBadge } from "@/components/scheme-badge";
 import { CopyButton } from "@/components/copy-button";
@@ -42,12 +42,6 @@ export function WaysToType({ entry }: { entry: CharacterEntry }) {
 
   return (
     <Panel className="overflow-hidden">
-      <PanelHeader title="Names">
-        <span className="text-[11px] tabular-nums text-ink-faint">
-          {rows.length} {rows.length === 1 ? "name" : "names"}
-        </span>
-      </PanelHeader>
-
       <ul className="divide-y divide-wire-subtle">
         {rows.map((r) => (
           <li

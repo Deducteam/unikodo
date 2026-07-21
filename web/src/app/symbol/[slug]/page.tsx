@@ -3,17 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 
-import {
-  getCharacter,
-  getRelated,
-  CLASS_LABELS,
-  type CharacterEntry,
-} from "@/lib/symbols";
-import { Panel, PanelHeader } from "@/components/andromeda/panel";
+import { getCharacter, getRelated, CLASS_LABELS } from "@/lib/symbols";
+import { Panel } from "@/components/andromeda/panel";
 import { Tag } from "@/components/andromeda/tag";
 import { Glyph } from "@/components/glyph";
 import { GlyphTile } from "@/components/glyph-tile";
-import { SchemeBadge } from "@/components/scheme-badge";
 import { CopyButton } from "@/components/copy-button";
 import { CornerMarkers } from "@/components/andromeda/corner-markers";
 import { WaysToType } from "@/components/symbol/ways-to-type";
@@ -32,36 +26,6 @@ export async function generateMetadata({
   };
 }
 
-function encodings(entry: CharacterEntry) {
-  const cps = entry.codepoints;
-  const hex = (c: number, pad = 4) =>
-    c.toString(16).toUpperCase().padStart(pad, "0");
-  return [
-    { term: "Code point", value: cps.map((c) => `U+${hex(c)}`).join(" ") },
-    { term: "Decimal", value: cps.map((c) => String(c)).join(" ") },
-    {
-      term: "UTF-8",
-      value: Array.from(Buffer.from(entry.value, "utf8"))
-        .map((b) => hex(b, 2))
-        .join(" "),
-    },
-    {
-      term: "UTF-16",
-      value: Array.from({ length: entry.value.length }, (_, i) =>
-        hex(entry.value.charCodeAt(i)),
-      ).join(" "),
-    },
-    { term: "HTML", value: cps.map((c) => `&#x${hex(c)};`).join("") },
-    { term: "CSS", value: cps.map((c) => `\\${hex(c)}`).join(" ") },
-    {
-      term: "JavaScript",
-      value: cps
-        .map((c) => (c > 0xffff ? `\\u{${hex(c)}}` : `\\u${hex(c)}`))
-        .join(""),
-    },
-  ];
-}
-
 export default async function SymbolPage({
   params,
 }: {
@@ -72,7 +36,6 @@ export default async function SymbolPage({
   if (!entry) notFound();
 
   const related = getRelated(entry, 28);
-  const encs = encodings(entry);
   // Total ways to name it, matching the Names panel — which appends the dynamic
   // U+ code-point name for single-code-point characters (see WaysToType).
   const nameCount = entry.names.length + (entry.codepoints.length === 1 ? 1 : 0);
@@ -147,39 +110,12 @@ export default async function SymbolPage({
               className="px-3 py-1.5 text-[12px]"
             />
           </div>
-
-          <div className="mt-6">
-            <div className="label-caps mb-2">Named by</div>
-            <div className="flex flex-wrap gap-1.5">
-              {entry.schemes.map((s) => (
-                <SchemeBadge key={s} scheme={s} />
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* ===================== NAMES + ENCODINGS ======================= */}
-      <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
+      {/* ============================ NAMES ============================ */}
+      <section className="mt-8">
         <WaysToType entry={entry} />
-
-        <Panel className="overflow-hidden">
-          <PanelHeader title="Encodings" />
-          <dl className="divide-y divide-wire-subtle">
-            {encs.map((e) => (
-              <div
-                key={e.term}
-                className="grid grid-cols-[88px_1fr_auto] items-center gap-2 px-4 py-2"
-              >
-                <dt className="label-caps">{e.term}</dt>
-                <dd className="truncate text-[12.5px] tabular-nums text-ink-secondary">
-                  {e.value}
-                </dd>
-                <CopyButton value={e.value} iconSize={12} />
-              </div>
-            ))}
-          </dl>
-        </Panel>
       </section>
 
       {/* =========================== RELATED =========================== */}

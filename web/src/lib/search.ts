@@ -26,6 +26,10 @@ export interface SearchEntry {
   st: string | null;
   /** letter script ("Latin" | "Greek" | "Hebrew" | "Digit"), letters only */
   sr: string | null;
+  /** letter case ("u" upper | "l" lower), letters only; null if caseless */
+  cs: string | null;
+  /** shape kind ("Ellipses" | "Triangles" | "Quadrilaterals" | "Other"), shapes only */
+  sk: string | null;
 }
 
 let cache: SearchEntry[] | null = null;
@@ -81,7 +85,7 @@ export function scoreEntry(e: SearchEntry, q: string): number {
 
   if (block.includes(q)) score = Math.max(score, 80);
 
-  // Curated category tags (e.g. "arrows", "greek", "set & logic") let a category
+  // Curated category tags (e.g. "arrows", "greek", "brackets") let a category
   // name surface its members — including styled letters whose Unicode name lacks
   // the word (bold Greek, say). Exact match ranks well; prefix only for longer
   // queries so short ones like "s" don't drag in every Shape/Script glyph.
