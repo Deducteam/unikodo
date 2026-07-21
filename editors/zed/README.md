@@ -21,7 +21,9 @@ Zed will compile the extension to WebAssembly and load it.
 
 ## Usage
 
-By default the server is attached to **Markdown** and **Plain Text** documents.
+By default the server is attached to **Markdown**, **Plain Text**, **Lambdapi**,
+**LaTeX**, and **Typst** documents (languages you don't have installed are
+simply ignored).
 Type a backslash followed by a `unicode-math` macro name (e.g. `\leq`, `\BbbR`)
 and accept the completion to insert the character.
 
