@@ -2,7 +2,7 @@
   "name": "unikodo",
   "displayName": "Unikodo — Unicode completions",
   "description": "Unicode (math) symbol completions via the unikodo LSP server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "deducteam",
   "license": "MIT",
   "icon": "icon.png",
