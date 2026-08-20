@@ -178,7 +178,13 @@ impl LanguageServer for Backend {
 
         Ok(items.map(|items| {
             CompletionResponse::List(CompletionList {
-                is_incomplete: false,
+                // The list is filtered against the typed name, so it is only
+                // valid for this exact prefix. Saying `false` here invites the
+                // client to cache the bare-trigger list (every name in the
+                // scheme) and fuzzy-filter it itself, which reorders exact
+                // matches behind camel-hump ones (`\nLeftrightarrow` ahead of
+                // `\leftrightarrow`). `true` makes it re-request per keystroke.
+                is_incomplete: true,
                 items,
             })
         }))
@@ -252,7 +258,7 @@ fn completions_at(text: &str, position: Position, config: &Config) -> Option<Vec
         } else {
             items.extend(
                 complete_in(info.id, query, config.include_ascii)
-                    .map(|symbol| completion_item(symbol, trigger, info.display, range)),
+                    .map(|symbol| completion_item(symbol, trigger, info.display, range, query)),
             );
         }
     }
@@ -315,6 +321,19 @@ fn inserted_text(item: &CompletionItem) -> &str {
     }
 }
 
+/// Sort key for a candidate `name` matched by `query`: an exact match first,
+/// then shorter names, then alphabetical. Lexicographic ordering over the
+/// rendered key reproduces that, so clients that honour `sortText` (and clients
+/// that use it to break ties) put the name you fully typed at the top.
+fn sort_key(name: &str, query: &str) -> String {
+    let rank = if name.eq_ignore_ascii_case(query) {
+        0
+    } else {
+        1
+    };
+    format!("{rank}{:04}{name}", name.len().min(9999))
+}
+
 /// Turn a [`Symbol`] into a completion item whose acceptance inserts the value
 /// over the typed `trigger` + name (`range`). An empty `trigger` inserts over the
 /// bare name.
@@ -323,6 +342,7 @@ fn completion_item(
     trigger: &str,
     scheme_display: &str,
     range: Range,
+    query: &str,
 ) -> CompletionItem {
     let typed = format!("{trigger}{}", symbol.name);
     let glyph = symbol.value.clone();
@@ -351,7 +371,7 @@ fn completion_item(
             scheme_display,
         )),
         filter_text: Some(typed.clone()),
-        sort_text: Some(symbol.name.clone()),
+        sort_text: Some(sort_key(&symbol.name, query)),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range,
             new_text: glyph,
@@ -678,6 +698,47 @@ mod tests {
         assert!(merged.include_ascii);
         assert!(!merged.dedupe);
         assert_eq!(merged.trigger("typst", "\\"), ";");
+    }
+
+    #[test]
+    fn exact_match_sorts_before_longer_candidates() {
+        // A client ordering by `sortText` must put the fully typed name first:
+        // `\leftrightarrow` ahead of `\leftrightarrows` and friends, and never
+        // behind a longer name that merely contains the query.
+        let items =
+            completions_at("\\leftrightarrow", pos(0, 16), &cfg(&["unicode-math"])).expect("items");
+        let mut sorted = items.clone();
+        sorted.sort_by(|a, b| a.sort_text.cmp(&b.sort_text));
+        assert_eq!(sorted[0].label, "\\leftrightarrow");
+        assert!(
+            sorted.len() > 1,
+            "expected longer candidates to compare against"
+        );
+        let first = find(&items, "\\leftrightarrow")
+            .sort_text
+            .as_deref()
+            .expect("sort_text");
+        for item in &items {
+            if item.label != "\\leftrightarrow" {
+                assert!(
+                    first < item.sort_text.as_deref().expect("sort_text"),
+                    "`{}` sorted at or before the exact match",
+                    item.label
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sort_key_ranks_exact_then_shortest() {
+        assert!(sort_key("leq", "leq") < sort_key("leqq", "leq"));
+        assert!(sort_key("leqq", "leq") < sort_key("leqslant", "leq"));
+        // Case-insensitive, so an exact match still wins when the client
+        // lower-cases (or the user shifts) the query.
+        assert!(
+            sort_key("Leftrightarrow", "leftrightarrow")
+                < sort_key("nLeftrightarrow", "leftrightarrow")
+        );
     }
 
     #[test]
