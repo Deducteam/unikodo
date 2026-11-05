@@ -14,6 +14,11 @@ const TABLE: &str = include_str!("../data/unicode-math-table.tex");
 /// `scripts/update-latex-symbols.py` (see `data/README.md` for source/licence).
 const LATEX_TSV: &str = include_str!("../data/latex-symbols.tsv");
 
+/// The `abacus` scheme: names for the symbols of the Abacus specification
+/// language, in its own vocabulary (`the` → ℩, `some` → ε, `restrict` → ↾).
+/// Original to unikodo; see `data/README.md`.
+const ABACUS_TSV: &str = include_str!("../data/abacus-symbols.tsv");
+
 /// Starter set of ASCII digraph aliases: `(name, character, description)`.
 ///
 /// These map punctuation sequences to the non-ASCII characters they evoke. It is
@@ -36,14 +41,16 @@ const ASCII_ALIASES: &[(&str, char, &str)] = &[
 /// All symbols across every built-in scheme.
 ///
 /// Parsed once, on first access, and cached for the lifetime of the program:
-/// `unicode-math` (in table order), the ASCII aliases, Typst's `sym` names, then
-/// the `latex` table. Each [`Symbol`] is tagged with its [`scheme`](crate::scheme).
-/// (The `unicode` scheme is dynamic and has no entries here.)
+/// `unicode-math` (in table order), `greek` (derived from it), the ASCII aliases,
+/// Typst's `sym` names, the `latex` table, then the `abacus` table. Each [`Symbol`] is tagged with its
+/// [`scheme`](crate::scheme). (The `unicode` scheme is dynamic and has no entries
+/// here.)
 pub fn symbols() -> &'static [Symbol] {
     static SYMBOLS: OnceLock<Vec<Symbol>> = OnceLock::new();
     SYMBOLS
         .get_or_init(|| {
             let mut all: Vec<Symbol> = TABLE.lines().filter_map(parse_line).collect();
+            collect_greek(&mut all);
             all.extend(ASCII_ALIASES.iter().map(|&(name, ch, description)| Symbol {
                 scheme: scheme::ASCII,
                 name: name.to_string(),
@@ -53,6 +60,7 @@ pub fn symbols() -> &'static [Symbol] {
             }));
             collect_typst(&mut all);
             parse_tsv(scheme::LATEX, LATEX_TSV, &mut all);
+            parse_tsv(scheme::ABACUS, ABACUS_TSV, &mut all);
             all
         })
         .as_slice()
@@ -178,6 +186,41 @@ fn parse_tsv(scheme_id: &'static str, data: &'static str, out: &mut Vec<Symbol>)
             });
         }
     }
+}
+
+/// The Greek and Greek Extended blocks — the code points the `greek` scheme
+/// covers. Everything outside them stays out, so the scheme is letters only.
+const GREEK_BLOCKS: [(u32, u32); 2] = [(0x0370, 0x03FF), (0x1F00, 0x1FFF)];
+
+/// Re-expose the `unicode-math` upright Greek series (`mupalpha`, `mupLambda`)
+/// under the conventional spelling (`alpha`, `Lambda`), so the letters are
+/// reachable without the `mup` prefix.
+///
+/// Derived from the vendored table rather than vendored separately, which keeps
+/// unicode-math's mappings — notably `epsilon` = ϵ (lunate, U+03F5) against
+/// `varepsilon` = ε (U+03B5), and `phi` = ϕ against `varphi` = φ. The W3C table
+/// behind the `latex` scheme disagrees there, mapping `varepsilon` to ɛ
+/// (U+025B), a Latin phonetic letter.
+///
+/// Expects the `unicode-math` symbols to already be in `out`.
+fn collect_greek(out: &mut Vec<Symbol>) {
+    let greek: Vec<Symbol> = out
+        .iter()
+        .filter(|s| s.scheme == scheme::UNICODE_MATH)
+        .filter_map(|s| {
+            let name = s.name.strip_prefix("mup")?;
+            let cp = s.codepoint()?;
+            let in_greek = GREEK_BLOCKS.iter().any(|&(lo, hi)| (lo..=hi).contains(&cp));
+            in_greek.then(|| Symbol {
+                scheme: scheme::GREEK,
+                name: name.to_string(),
+                value: s.value.clone(),
+                class: s.class,
+                description: s.description,
+            })
+        })
+        .collect();
+    out.extend(greek);
 }
 
 /// Walk Typst's `sym` module (from the `codex` crate) and push one [`Symbol`] per
@@ -338,6 +381,53 @@ mod tests {
         assert!(chars.contains(&'>'));
         assert!(chars.contains(&'|'));
         assert!(!chars.contains(&'a'));
+    }
+
+    #[test]
+    fn greek_scheme_present() {
+        // The whole alphabet in both cases, plus the `var` forms.
+        assert_eq!(count(scheme::GREEK), 56);
+        assert_eq!(find(scheme::GREEK, "alpha").value, "α");
+        assert_eq!(find(scheme::GREEK, "Lambda").value, "Λ");
+        assert_eq!(find(scheme::GREEK, "Omega").value, "Ω");
+        // The `mup` prefix is dropped, not kept alongside.
+        assert!(!symbols()
+            .iter()
+            .any(|s| s.scheme == scheme::GREEK && s.name.starts_with("mup")));
+        // Every entry is a single Greek-block code point.
+        assert!(symbols()
+            .iter()
+            .filter(|s| s.scheme == scheme::GREEK)
+            .all(|s| s.codepoint().is_some_and(
+                |cp| (0x0370..=0x03FF).contains(&cp) || (0x1F00..=0x1FFF).contains(&cp)
+            )));
+    }
+
+    #[test]
+    fn greek_follows_unicode_math_on_the_var_pairs() {
+        // LaTeX renders \epsilon lunate and \varepsilon rounded; unicode-math
+        // encodes exactly that, and the `latex` scheme's W3C source does not.
+        assert_eq!(find(scheme::GREEK, "epsilon").value, "ϵ"); // U+03F5
+        assert_eq!(find(scheme::GREEK, "varepsilon").value, "ε"); // U+03B5
+        assert_eq!(find(scheme::GREEK, "phi").value, "ϕ"); // U+03D5
+        assert_eq!(find(scheme::GREEK, "varphi").value, "φ"); // U+03C6
+        assert_eq!(find(scheme::LATEX, "varepsilon").value, "ɛ"); // U+025B, Latin
+    }
+
+    #[test]
+    fn abacus_scheme_present() {
+        assert!(count(scheme::ABACUS) > 50);
+        assert_eq!(find(scheme::ABACUS, "the").value, "℩");
+        assert_eq!(find(scheme::ABACUS, "some").value, "ε");
+        assert_eq!(find(scheme::ABACUS, "restrict").value, "↾");
+        assert_eq!(find(scheme::ABACUS, "exists1").value, "∃!"); // two code points
+        assert_eq!(find(scheme::ABACUS, "_1").value, "₁");
+        assert!(!find(scheme::ABACUS, "the").description.is_empty());
+        // Every entry expands to something non-ASCII.
+        assert!(symbols()
+            .iter()
+            .filter(|s| s.scheme == scheme::ABACUS)
+            .all(|s| !s.is_ascii()));
     }
 
     #[test]

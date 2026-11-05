@@ -42,8 +42,9 @@ character. By default only **non-ASCII** characters are offered (a completion fo
 `\lparen` → `(` is not worth much).
 
 > **A note on names.** The `unicode-math` scheme uses *systematic* letter names
-> (α is `\mupalpha`, ℝ is `\BbbR`); the `latex` and `typst` schemes give the
-> familiar `\alpha`. Enable whichever vocabulary you prefer. Browse
+> (α is `\mupalpha`, ℝ is `\BbbR`); the `greek`, `latex`, and `typst` schemes give
+> the familiar `\alpha`. Enable whichever vocabulary you prefer — `greek` is the
+> cheap way to get the alphabet without `latex`'s other 365 names. Browse
 > `unicode-math-symbols.pdf` for the unicode-math macros.
 
 ## Naming schemes
@@ -54,14 +55,22 @@ can type for the same characters — and lets you choose which are active:
 | Scheme | Default trigger | Example | Source |
 | --- | --- | --- | --- |
 | `unicode-math` | `\` | `\BbbR` → `ℝ` | [unicode-math `unicode-math-table.tex`](https://github.com/wspr/unicode-math) (LPPL) |
+| `greek` | `\` | `\Lambda` → `Λ`, `\varepsilon` → `ε` | derived: the unicode-math upright series minus its `mup` prefix |
 | `latex` | `\` | `\alpha` → `α`, `\leq` → `≤` | [W3C `unicode.xml`](https://www.w3.org/Math/characters/) (W3C) |
 | `typst` | `\` | `\arrow.r.double` → `⇒` | [`codex`](https://github.com/typst/codex) crate (Apache-2.0) |
+| `abacus` | `\` | `\the` → `℩`, `\some` → `ε`, `\restrict` → `↾` | the Abacus specification language's own vocabulary (MIT) |
 | `unicode` | `U+` | `U+03B1` → `α` | the Unicode standard (code points) |
 | `ascii` | _(none, inline)_ | `=>` → `⇒`, `->` → `→` | built-in starter set |
 
 Each scheme has a **default trigger** that the user can override per scheme; an
 empty trigger means **no trigger** — the bare name is matched inline as you type
 (see [Configuration](#configuration)). Notes:
+- `greek` is the 56 Greek letters (both cases, plus the `var` forms) under their
+  conventional names, derived from `unicode-math`'s `mup` series rather than
+  vendored again. It therefore keeps unicode-math's readings of the pairs LaTeX
+  renders unexpectedly — `\epsilon` → `ϵ` against `\varepsilon` → `ε`, and
+  `\phi` → `ϕ` against `\varphi` → `φ`. The W3C table behind `latex` disagrees,
+  mapping `\varepsilon` to `ɛ` (U+025B), a Latin phonetic letter.
 - `latex` covers single-token commands; argument forms like `\mathbb{R}` are out
   of scope (use `unicode-math`/`typst` for styled alphabets).
 - `unicode` is dynamic: type the trigger plus a hex code point (`U+2200` → `∀`);
@@ -83,9 +92,9 @@ Settings reach the server via `initializationOptions`, and live updates via
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `enabledSchemes` | `["unicode-math"]` | Which schemes to offer, e.g. `["unicode-math", "latex", "typst", "unicode"]`. |
+| `enabledSchemes` | `["unicode-math"]` | Which schemes to offer, e.g. `["unicode-math", "greek", "typst", "unicode"]`. |
 | `includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
-| `triggers` | `{}` | Per-scheme trigger overrides, e.g. `{"typst": ";"}`. `""` means no trigger (match the bare name inline). Defaults: `\` for unicode-math/latex/typst, `U+` for unicode, inline for ascii. |
+| `triggers` | `{}` | Per-scheme trigger overrides, e.g. `{"typst": ";"}`. `""` means no trigger (match the bare name inline). Defaults: `\` for unicode-math/greek/latex/typst, `U+` for unicode, inline for ascii. |
 | `dedupe` | `true` | Collapse identical completions (same name + character) from multiple schemes; the first by `enabledSchemes` order wins. |
 
 In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii` /

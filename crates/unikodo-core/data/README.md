@@ -11,6 +11,7 @@ set are computed in code, with no data file.
 | File | Scheme | Upstream | Licence |
 | --- | --- | --- | --- |
 | `unicode-math-table.tex` | `unicode-math` | [unicode-math](https://github.com/wspr/unicode-math) (Will Robertson et al.) | LPPL v1.3c+ |
+| `abacus-symbols.tsv` | `abacus` | original to unikodo: the notation of the Abacus specification language | MIT |
 | `latex-symbols.tsv` | `latex` | [W3C "XML Entity Definitions for Characters" (`unicode.xml`)](https://www.w3.org/Math/characters/) (David Carlisle et al.) | W3C Software and Document Licence |
 
 Each vendored/derived file is redistributed under **its own** upstream licence

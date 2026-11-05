@@ -31,5 +31,7 @@ mod scheme;
 mod symbol;
 
 pub use db::{complete_in, name_chars, symbols};
-pub use scheme::{scheme, schemes, SchemeInfo, ASCII, LATEX, TYPST, UNICODE, UNICODE_MATH};
+pub use scheme::{
+    scheme, schemes, SchemeInfo, ABACUS, ASCII, GREEK, LATEX, TYPST, UNICODE, UNICODE_MATH,
+};
 pub use symbol::Symbol;

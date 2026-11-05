@@ -1,7 +1,8 @@
 //! Naming schemes: the different vocabularies a user can type to insert a symbol.
 //!
 //! unikodo is designed around *multiple* naming schemes. Most are tables of
-//! `name → character` (`unicode-math`, `latex`, `typst`, `ascii`); `unicode` is a
+//! `name → character` (`unicode-math`, `greek`, `latex`, `typst`, `abacus`, `ascii`);
+//! `unicode` is a
 //! dynamic scheme that turns a hex code point into its character. Each scheme has
 //! a **default trigger** — the text typed before a name (e.g. `\` or `U+`) — which
 //! an editor integration may override per scheme. An empty trigger means *no
@@ -28,10 +29,15 @@ pub struct SchemeInfo {
 
 /// `unicode-math` macro names without the backslash, e.g. `leq`, `mupalpha`.
 pub const UNICODE_MATH: &str = "unicode-math";
+/// Greek letters under their conventional names, e.g. `alpha`, `Lambda`.
+/// Derived from the `unicode-math` upright series by dropping its `mup` prefix.
+pub const GREEK: &str = "greek";
 /// Conventional LaTeX + AMS macro names, e.g. `alpha`, `leq`, `subseteq`.
 pub const LATEX: &str = "latex";
 /// Typst `sym` names, e.g. `arrow.r.double`, `alpha`, `eq.not`.
 pub const TYPST: &str = "typst";
+/// Abacus specification-language names, e.g. `the` (℩), `some` (ε), `restrict` (↾).
+pub const ABACUS: &str = "abacus";
 /// Unicode code points entered by hex, e.g. `U+03B1`. A dynamic scheme (no table).
 pub const UNICODE: &str = "unicode";
 /// ASCII digraphs, e.g. `=>`, `->`, `<=`.
@@ -45,6 +51,12 @@ const SCHEMES: &[SchemeInfo] = &[
         default_trigger: "\\",
     },
     SchemeInfo {
+        id: GREEK,
+        display: "Greek",
+        description: "Greek letters by name (e.g. \\Lambda, \\varepsilon).",
+        default_trigger: "\\",
+    },
+    SchemeInfo {
         id: LATEX,
         display: "LaTeX",
         description: "Conventional LaTeX + AMS macros (e.g. \\alpha, \\leq).",
@@ -54,6 +66,12 @@ const SCHEMES: &[SchemeInfo] = &[
         id: TYPST,
         display: "Typst",
         description: "Typst sym names (e.g. \\arrow.r.double).",
+        default_trigger: "\\",
+    },
+    SchemeInfo {
+        id: ABACUS,
+        display: "Abacus",
+        description: "Abacus specification-language names (e.g. \\the, \\some, \\restrict).",
         default_trigger: "\\",
     },
     SchemeInfo {

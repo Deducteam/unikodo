@@ -39,7 +39,7 @@ Configure naming schemes in your Zed `settings.json`:
   "lsp": {
     "unikodo": {
       "initialization_options": {
-        "enabledSchemes": ["unicode-math", "latex", "typst", "unicode", "ascii"],
+        "enabledSchemes": ["unicode-math", "greek", "latex", "typst", "unicode", "ascii"],
         "includeAscii": false,
         "triggers": { "typst": ";" },
         "dedupe": true
@@ -49,7 +49,7 @@ Configure naming schemes in your Zed `settings.json`:
 }
 ```
 
-Built-in schemes: `unicode-math`, `latex`, `typst` (default trigger `\`),
+Built-in schemes: `unicode-math`, `greek`, `latex`, `typst` (default trigger `\`),
 `unicode` (code points, trigger `U+`), and `ascii` (inline `=>` → `⇒`).
 `triggers` overrides the trigger per scheme — `""` means no trigger (match the
 bare name inline); `dedupe` (default `true`) collapses identical completions

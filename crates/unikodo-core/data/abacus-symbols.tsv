@@ -1,0 +1,85 @@
+# Names for the symbols of the Abacus specification language, in Abacus's own
+# vocabulary: the way the language talks about them (`\the` for the definite
+# description ℩, `\some` for the choice operator ε, `\restrict` for ↾), plus
+# the short conventional spellings of the built-in logic and set notation.
+# Greek letters are left to the `greek` scheme.
+#
+# Format: name<TAB>codepoint(hex)[ codepoint...]<TAB>description
+# Licence: MIT, as unikodo itself (this table is original to unikodo).
+
+# --- binders ---
+lambda	03BB	function abstraction (λ x. t)
+fun	03BB	function abstraction (λ x. t)
+forall	2200	universal quantifier
+all	2200	universal quantifier
+exists	2203	existential quantifier
+ex	2203	existential quantifier
+exists1	2203 0021	unique existence (∃! x. φ)
+unique	2203 0021	unique existence (∃! x. φ)
+the	2129	definite description (℩ x. φ)
+some	03B5	indefinite description, Hilbert choice (ε x. φ)
+sum	2211	summation (∑ x ∈ s. t)
+prod	220F	product (∏ x ∈ s. t)
+bigcup	22C3	indexed union (⋃ x ∈ s. t)
+bigcap	22C2	indexed intersection (⋂ x ∈ s. t)
+
+# --- logic ---
+and	2227	conjunction
+or	2228	disjunction
+not	00AC	negation
+neg	00AC	negation
+implies	21D2	implication
+imp	21D2	implication
+iff	21D4	biconditional
+
+# --- relations ---
+neq	2260	not equal
+ne	2260	not equal
+leq	2264	less than or equal
+le	2264	less than or equal
+geq	2265	greater than or equal
+ge	2265	greater than or equal
+
+# --- sets ---
+in	2208	set membership
+notin	2209	set non-membership
+subseteq	2286	subset or equal
+sub	2286	subset or equal
+cup	222A	union
+union	222A	union
+cap	2229	intersection
+inter	2229	intersection
+setminus	2216	set difference
+diff	2216	set difference
+empty	2205	empty set
+emptyset	2205	empty set
+
+# --- records ---
+restrict	21BE	record restriction (r ↾ T)
+
+# --- functions and number sets ---
+compose	2218	function composition
+circ	2218	function composition
+N	2115	natural numbers
+Z	2124	integers
+Q	211A	rationals
+R	211D	reals
+C	2102	complex numbers
+
+# --- subscripts (identifier characters) ---
+_0	2080	subscript zero
+_1	2081	subscript one
+_2	2082	subscript two
+_3	2083	subscript three
+_4	2084	subscript four
+_5	2085	subscript five
+_6	2086	subscript six
+_7	2087	subscript seven
+_8	2088	subscript eight
+_9	2089	subscript nine
+_i	1D62	subscript i
+_j	2C7C	subscript j
+_k	2096	subscript k
+_m	2098	subscript m
+_n	2099	subscript n
+_x	2093	subscript x

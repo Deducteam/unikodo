@@ -11,4 +11,4 @@ repository = "https://github.com/Deducteam/unikodo"
 # want Unicode completions in.
 [language_servers.unikodo]
 name = "Unikodo"
-languages = ["Markdown", "Plain Text", "Lambdapi", "LaTeX", "Typst"]
+languages = ["Markdown", "Plain Text", "Lambdapi", "LaTeX", "Typst", "Abacus"]

@@ -53,7 +53,7 @@ configurable (see `unikodo.triggers`); an empty trigger matches the bare name.
 | --- | --- | --- |
 | `unikodo.serverPath` | `""` | Path to the language server binary. Empty auto-downloads it from GitHub releases; `unikodo-lsp` resolves on your `PATH`; or an absolute path. |
 | `unikodo.languages` | `["*"]` | Language IDs to enable completions for; `["*"]` means all files. |
-| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `latex`, `typst`, `unicode`, `ascii`. |
+| `unikodo.enabledSchemes` | `["unicode-math"]` | Naming schemes to offer. Built-ins: `unicode-math`, `greek`, `latex`, `typst`, `unicode`, `ascii`. |
 | `unikodo.includeAscii` | `false` | Also offer names whose value is a single ASCII character. |
 | `unikodo.triggers` | `{}` | Per-scheme trigger overrides, e.g. `{"typst": ";"}`. `""` = no trigger (match the bare name inline). |
 | `unikodo.dedupe` | `true` | Collapse identical completions from multiple schemes (first by `enabledSchemes` wins). |

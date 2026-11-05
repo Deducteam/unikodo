@@ -62,7 +62,7 @@
           "default": [
             "unicode-math"
           ],
-          "description": "Naming schemes to offer completions from. Built-ins: \"unicode-math\", \"latex\", \"typst\", \"unicode\", \"ascii\"."
+          "description": "Naming schemes to offer completions from. Built-ins: \"unicode-math\", \"greek\", \"latex\", \"typst\", \"unicode\", \"ascii\"."
         },
         "unikodo.includeAscii": {
           "type": "boolean",
