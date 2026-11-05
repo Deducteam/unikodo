@@ -1,6 +1,6 @@
 id = "unikodo"
 name = "Unikodo"
-version = "0.1.1"
+version = "0.2.0"
 schema_version = 1
 authors = ["Deducteam"]
 description = "Unicode (math) symbol completions, powered by the unikodo LSP server"

@@ -6,7 +6,7 @@ members = ["crates/unikodo-core", "crates/unikodo-lsp"]
 exclude = ["editors/zed"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Deducteam/unikodo"
@@ -14,7 +14,7 @@ authors = ["Deducteam"]
 rust-version = "1.74"
 
 [workspace.dependencies]
-unikodo-core = { path = "crates/unikodo-core", version = "0.1.0" }
+unikodo-core = { path = "crates/unikodo-core", version = "0.2.0" }
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "time"] }
 dashmap = "6"
