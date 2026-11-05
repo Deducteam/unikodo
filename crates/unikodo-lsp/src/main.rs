@@ -35,6 +35,10 @@ struct Config {
     /// Collapse completions that are identical (same typed name + same inserted
     /// text) across enabled schemes, keeping the first by `enabled_schemes` order.
     dedupe: bool,
+    /// Whether the client takes snippets, so that a pair's completion can put
+    /// the cursor between its halves. The client's capability, not a setting.
+    #[serde(skip)]
+    snippets: bool,
 }
 
 impl Default for Config {
@@ -44,6 +48,7 @@ impl Default for Config {
             include_ascii: false,
             triggers: BTreeMap::new(),
             dedupe: true,
+            snippets: false,
         }
     }
 }
@@ -76,7 +81,10 @@ fn merged_config(base: &Config, value: &Value) -> Config {
     for (key, val) in overlay {
         merged.insert(key.clone(), val.clone());
     }
-    serde_json::from_value(Value::Object(merged)).unwrap_or_else(|_| base.clone())
+    let mut config: Config =
+        serde_json::from_value(Value::Object(merged)).unwrap_or_else(|_| base.clone());
+    config.snippets = base.snippets;
+    config
 }
 
 struct Backend {
@@ -107,6 +115,18 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let snippets = params
+            .capabilities
+            .text_document
+            .as_ref()
+            .and_then(|t| t.completion.as_ref())
+            .and_then(|c| c.completion_item.as_ref())
+            .and_then(|i| i.snippet_support)
+            .unwrap_or(false);
+        self.config
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .snippets = snippets;
         self.apply_config(params.initialization_options.as_ref());
         let triggers = trigger_characters(&self.config());
 
@@ -257,8 +277,9 @@ fn completions_at(text: &str, position: Position, config: &Config) -> Option<Vec
             }
         } else {
             items.extend(
-                complete_in(info.id, query, config.include_ascii)
-                    .map(|symbol| completion_item(symbol, trigger, info.display, range, query)),
+                complete_in(info.id, query, config.include_ascii).map(|symbol| {
+                    completion_item(symbol, trigger, info.display, range, query, config.snippets)
+                }),
             );
         }
     }
@@ -343,9 +364,19 @@ fn completion_item(
     scheme_display: &str,
     range: Range,
     query: &str,
+    snippets: bool,
 ) -> CompletionItem {
     let typed = format!("{trigger}{}", symbol.name);
     let glyph = symbol.value.clone();
+    // a pair inserted as a snippet, the cursor between its halves
+    let (new_text, format) = match symbol.cursor {
+        Some(at) if snippets => {
+            let (before, after) = glyph.split_at(at);
+            let text = format!("{}$0{}", snippet_text(before), snippet_text(after));
+            (text, Some(InsertTextFormat::SNIPPET))
+        }
+        _ => (glyph.clone(), None),
+    };
     let detail = if symbol.description.is_empty() {
         glyph.clone()
     } else {
@@ -372,12 +403,22 @@ fn completion_item(
         )),
         filter_text: Some(typed.clone()),
         sort_text: Some(sort_key(&symbol.name, query)),
-        text_edit: Some(CompletionTextEdit::Edit(TextEdit {
-            range,
-            new_text: glyph,
-        })),
+        text_edit: Some(CompletionTextEdit::Edit(TextEdit { range, new_text })),
+        insert_text_format: format,
         ..Default::default()
     }
+}
+
+/// Text that a snippet inserts as it stands: `$`, `}` and `\` escaped.
+fn snippet_text(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if matches!(c, '$' | '}' | '\\') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// The small payload stashed on a completion item's `data`, from which
@@ -496,6 +537,7 @@ mod tests {
             include_ascii: false,
             triggers: BTreeMap::new(),
             dedupe: false, // tests opt in explicitly
+            snippets: false,
         }
     }
 
@@ -692,6 +734,7 @@ mod tests {
             include_ascii: true,
             triggers: BTreeMap::new(),
             dedupe: false,
+            snippets: false,
         };
         let merged = merged_config(&base, &serde_json::json!({ "triggers": { "typst": ";" } }));
         assert_eq!(merged.enabled_schemes, base.enabled_schemes);
@@ -750,6 +793,35 @@ mod tests {
         let doc = build_documentation(item.data.as_ref().expect("data")).expect("documentation");
         assert!(doc.contains('≤'));
         assert!(doc.contains("scheme: unicode-math"));
+    }
+
+    #[test]
+    fn a_pair_is_a_snippet_where_the_client_takes_them() {
+        let text = "\\esc";
+        let mut config = cfg(&["abacus"]);
+        let items = completions_at(text, pos(0, 4), &config).expect("completions");
+        let item = find(&items, "\\esc");
+        assert_eq!(edit(item).new_text, "«»");
+        assert_eq!(item.insert_text_format, None);
+        config.snippets = true;
+        let items = completions_at(text, pos(0, 4), &config).expect("completions");
+        let item = find(&items, "\\esc");
+        assert_eq!(edit(item).new_text, "«$0»");
+        assert_eq!(item.insert_text_format, Some(InsertTextFormat::SNIPPET));
+        // a symbol of no pair stays plain text
+        let items = completions_at("\\the", pos(0, 4), &config).expect("completions");
+        assert_eq!(find(&items, "\\the").insert_text_format, None);
+        assert_eq!(snippet_text("a$b}c\\"), "a\\$b\\}c\\\\");
+    }
+
+    #[test]
+    fn a_settings_change_keeps_the_clients_snippet_support() {
+        let base = Config {
+            snippets: true,
+            ..Config::default()
+        };
+        let merged = merged_config(&base, &serde_json::json!({"dedupe": false}));
+        assert!(merged.snippets && !merged.dedupe);
     }
 
     #[test]

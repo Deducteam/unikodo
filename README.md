@@ -71,6 +71,10 @@ empty trigger means **no trigger** — the bare name is matched inline as you ty
   renders unexpectedly — `\epsilon` → `ϵ` against `\varepsilon` → `ε`, and
   `\phi` → `ϕ` against `\varphi` → `φ`. The W3C table behind `latex` disagrees,
   mapping `\varepsilon` to `ɛ` (U+025B), a Latin phonetic letter.
+- `abacus`'s `\esc` inserts the pair `«»` of an escaped name with the cursor
+  between its halves, where the editor takes snippets (Zed and VS Code do);
+  elsewhere it inserts the pair. A table marks the cursor with `$0` among an
+  entry's code points.
 - `latex` covers single-token commands; argument forms like `\mathbb{R}` are out
   of scope (use `unicode-math`/`typst` for styled alphabets).
 - `unicode` is dynamic: type the trigger plus a hex code point (`U+2200` → `∀`);

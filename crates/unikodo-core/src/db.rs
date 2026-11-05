@@ -55,6 +55,7 @@ pub fn symbols() -> &'static [Symbol] {
                 scheme: scheme::ASCII,
                 name: name.to_string(),
                 value: ch.to_string(),
+                cursor: None,
                 class: None,
                 description,
             }));
@@ -139,6 +140,7 @@ fn parse_line(line: &'static str) -> Option<Symbol> {
         scheme: scheme::UNICODE_MATH,
         name: name.to_string(),
         value: ch.to_string(),
+        cursor: None,
         class: Some(class),
         description,
     })
@@ -165,15 +167,17 @@ fn parse_tsv(scheme_id: &'static str, data: &'static str, out: &mut Vec<Symbol>)
         };
         let description = cols.next().unwrap_or("");
 
-        let mut value = String::new();
-        let valid = codes.split(' ').all(|hex| {
-            match u32::from_str_radix(hex, 16).ok().and_then(char::from_u32) {
+        // code points, and at most one `$0`: where the cursor goes
+        let (mut value, mut cursor) = (String::new(), None);
+        let valid = codes.split(' ').all(|hex| match hex {
+            "$0" => cursor.replace(value.len()).is_none(),
+            hex => match u32::from_str_radix(hex, 16).ok().and_then(char::from_u32) {
                 Some(c) => {
                     value.push(c);
                     true
                 }
                 None => false,
-            }
+            },
         });
 
         if valid && !name.is_empty() && !value.is_empty() {
@@ -181,6 +185,7 @@ fn parse_tsv(scheme_id: &'static str, data: &'static str, out: &mut Vec<Symbol>)
                 scheme: scheme_id,
                 name: name.to_string(),
                 value,
+                cursor,
                 class: None,
                 description,
             });
@@ -215,6 +220,7 @@ fn collect_greek(out: &mut Vec<Symbol>) {
                 scheme: scheme::GREEK,
                 name: name.to_string(),
                 value: s.value.clone(),
+                cursor: None,
                 class: s.class,
                 description: s.description,
             })
@@ -254,6 +260,7 @@ fn collect_typst(out: &mut Vec<Symbol>) {
                             scheme: scheme::TYPST,
                             name: full,
                             value: value.to_string(),
+                            cursor: None,
                             class: None,
                             description: "",
                         });
@@ -422,6 +429,10 @@ mod tests {
         assert_eq!(find(scheme::ABACUS, "restrict").value, "↾");
         assert_eq!(find(scheme::ABACUS, "exists1").value, "∃!"); // two code points
         assert_eq!(find(scheme::ABACUS, "_1").value, "₁");
+        // a pair, the cursor between its halves
+        assert_eq!(find(scheme::ABACUS, "esc").value, "«»");
+        assert_eq!(find(scheme::ABACUS, "esc").cursor, Some("«".len()));
+        assert_eq!(find(scheme::ABACUS, "the").cursor, None);
         assert!(!find(scheme::ABACUS, "the").description.is_empty());
         // Every entry expands to something non-ASCII.
         assert!(symbols()

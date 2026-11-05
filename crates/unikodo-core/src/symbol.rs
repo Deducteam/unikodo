@@ -16,6 +16,10 @@ pub struct Symbol {
     pub name: String,
     /// The text inserted when this symbol is accepted.
     pub value: String,
+    /// Where the cursor stands in `value` once it is inserted, as a byte
+    /// offset, for a pair such as `«»` typed around what follows; `None` for
+    /// after it.
+    pub cursor: Option<usize>,
     /// `unicode-math` math class without the leading backslash (e.g. `"mathrel"`),
     /// when the scheme provides one.
     pub class: Option<&'static str>,

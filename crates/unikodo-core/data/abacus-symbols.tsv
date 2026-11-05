@@ -4,7 +4,8 @@
 # the short conventional spellings of the built-in logic and set notation.
 # Greek letters are left to the `greek` scheme.
 #
-# Format: name<TAB>codepoint(hex)[ codepoint...]<TAB>description
+# Format: name<TAB>codepoint(hex)[ codepoint...]<TAB>description, where one
+# `$0` among the code points marks where the cursor goes, between a pair.
 # Licence: MIT, as unikodo itself (this table is original to unikodo).
 
 # --- binders ---
@@ -56,6 +57,9 @@ emptyset	2205	empty set
 
 # --- records ---
 restrict	21BE	record restriction (r ↾ T)
+
+# --- names ---
+esc	00AB $0 00BB	escaped name: any text as one name («free bags»)
 
 # --- functions and number sets ---
 compose	2218	function composition
