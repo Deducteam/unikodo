@@ -40,6 +40,12 @@ def main():
         if cp < 0x20:
             continue
         desc = " ".join((ch.findtext("description") or "").split())
+        # unicode.xml carries the formal Unicode character name, which is
+        # uppercase by convention (LATIN CAPITAL LETTER A WITH RING ABOVE).
+        # The unicode-math table writes its prose in lowercase, so a mixed
+        # completion list would shout on every latex-scheme row; match it.
+        if desc and not any(c.islower() for c in desc):
+            desc = desc.lower()
         for field in FIELDS:
             cmd = ch.findtext(field)
             if cmd and CLEAN.match(cmd.strip()):
