@@ -17,27 +17,46 @@ const typing = ($: any, on: any) => {
 
 const schemes = (...enabledSchemes: string[]): { options: PluginOptions } => ({ options: { enabledSchemes } })
 
-describe('defaults (unicode-math)', () => {
-  test('the name typed comes first, then longer names that start with it', async ($, on) => {
+const UNICODE_MATH = schemes('unicode-math')
+
+describe('defaults (abacus, unicode-math, greek)', () => {
+  test('short names complete, each row naming its scheme', async ($, on) => {
+    const type = typing($, on)
+    expect((await type('\\N'))[0]).toEqual({ text: 'ℕ', label: 'ℕ  \\N', description: 'natural numbers · Abacus' })
+    expect((await type('\\all'))[0]?.text).toBe('∀')
+    expect((await type('\\alpha'))[0]?.text).toBe('α')
+  })
+
+  test('a partial name offers the rest', async ($, on) => {
+    expect((await typing($, on)('\\vare'))[0]?.text).toBe('ε')
+  })
+
+  test('unicode-math names complete too', async ($, on) => {
+    expect((await typing($, on)('\\BbbR'))[0]?.text).toBe('ℝ')
+  })
+})
+
+describe('unicode-math alone', () => {
+  test('the name typed comes first, then longer names that start with it', UNICODE_MATH, async ($, on) => {
     const rows = await typing($, on)('so \\leq')
     expect(rows[0]).toEqual({ text: '≤', label: '≤  \\leq', description: '/leq /le r: less-than-or-equal' })
     expect(rows.length).toBeGreaterThan(1)
     expect(rows.every(r => r.label?.includes('\\leq'))).toBe(true)
   })
 
-  test('an exact match ranks first whatever its case', async ($, on) => {
+  test('an exact match ranks first whatever its case', UNICODE_MATH, async ($, on) => {
     expect((await typing($, on)('\\leftrightarrow'))[0]?.label).toBe('↔  \\leftrightarrow')
   })
 
-  test('text glued before the backslash is written back', async ($, on) => {
+  test('text glued before the backslash is written back', UNICODE_MATH, async ($, on) => {
     expect((await typing($, on)('f(\\BbbR'))[0]?.text).toBe('f(ℝ')
   })
 
-  test('at most twelve rows', async ($, on) => {
+  test('at most twelve rows', UNICODE_MATH, async ($, on) => {
     expect((await typing($, on)('\\l')).length).toBe(12)
   })
 
-  test('ASCII values, a bare trigger, or no match: no rows', async ($, on) => {
+  test('ASCII values, a bare trigger, or no match: no rows', UNICODE_MATH, async ($, on) => {
     const type = typing($, on)
     expect(await type('\\mathexclam')).toEqual([])
     expect(await type('\\')).toEqual([])
@@ -45,7 +64,7 @@ describe('defaults (unicode-math)', () => {
     expect(await type('alpha')).toEqual([])
   })
 
-  test('a scheme left out offers nothing', async ($, on) => {
+  test('a scheme left out offers nothing', UNICODE_MATH, async ($, on) => {
     const type = typing($, on)
     expect(await type('\\alpha')).toEqual([])
     expect(await type('U+3B1')).toEqual([])

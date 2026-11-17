@@ -6,6 +6,11 @@
 import type { PluginOptions, PromptAutocompleteSuggestion, Register } from 'claude-code'
 import { SCHEMES, TABLES, type Scheme } from './symbols'
 
+// The mod's default, wider than the server's ["unicode-math"]: in a prompt the
+// short names (`\N`, `\all`, `\alpha`) are the point. Kept equal to the
+// `default` in .claude-plugin/plugin.json.
+const DEFAULT_SCHEMES = ['abacus', 'unicode-math', 'greek']
+
 // The rows offered at once; a one-letter query matches hundreds of names.
 const MAX_ROWS = 12
 
@@ -31,7 +36,7 @@ type Config = {
 function readConfig(options: PluginOptions): Config {
   // A list from settings.json, or one string as `claude plugin configure`
   // stores it ("abacus, unicode-math").
-  const raw = options.enabledSchemes ?? ['unicode-math']
+  const raw = options.enabledSchemes ?? DEFAULT_SCHEMES
   const wanted = typeof raw === 'string' ? raw.split(/[\s,]+/).filter(Boolean) : Array.isArray(raw) ? raw : []
   const schemes = [...new Set(wanted)].flatMap(id => SCHEMES.filter(s => s.id === id))
   const bareChars = new Map(

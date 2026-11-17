@@ -13,7 +13,7 @@
       "multiple": true,
       "title": "Enabled schemes",
       "description": "Which naming schemes to offer, in preference order: unicode-math, greek, latex, typst, abacus, unicode, ascii.",
-      "default": ["unicode-math"]
+      "default": ["abacus", "unicode-math", "greek"]
     },
     "includeAscii": {
       "type": "boolean",

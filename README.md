@@ -106,7 +106,9 @@ Settings reach the server via `initializationOptions`, and live updates via
 In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii` /
 `unikodo.triggers`. In **Zed**, put them under `lsp.unikodo.initialization_options`
 in your settings. In **Claude Code**, set them with
-`/plugin configure unikodo@unikodo` (all but `triggers`). For a raw LSP client,
+`/plugin configure unikodo@unikodo` (all but `triggers`); there `enabledSchemes`
+defaults to `["abacus", "unicode-math", "greek"]`, so short names like `\N` work
+out of the box. For a raw LSP client,
 pass them as `initializationOptions` at initialize.
 
 ## Build

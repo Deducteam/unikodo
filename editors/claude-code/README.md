@@ -31,7 +31,7 @@ with `claude plugin validate .` from the repository root.
 
 ## Usage
 
-Type a trigger and a name, e.g. `\leq`, `\BbbR`, and pick a row: it replaces
+Type a trigger and a name, e.g. `\all`, `\N`, `\alpha`, and pick a row (Tab): it replaces
 the `\name` with the character, keeping any text glued in front of it
 (`f(\alpha` → `f(α`). Rows appear once a letter follows the trigger; at most
 twelve show at a time, the name you typed in full first, then shorter names,
@@ -47,7 +47,7 @@ with `/plugin configure unikodo@unikodo`, or in `settings.json`:
   "pluginConfigs": {
     "unikodo@unikodo": {
       "options": {
-        "enabledSchemes": ["unicode-math", "greek", "latex", "typst", "abacus", "unicode", "ascii"],
+        "enabledSchemes": ["abacus", "unicode-math", "greek"],
         "includeAscii": false,
         "dedupe": true
       }
@@ -58,8 +58,11 @@ with `/plugin configure unikodo@unikodo`, or in `settings.json`:
 
 Built-in schemes: `unicode-math`, `greek`, `latex`, `typst`, `abacus` (trigger
 `\`), `unicode` (code points, trigger `U+`), and `ascii` (inline `->` → `→`).
-Only `unicode-math` is on by default; with several on, each row names its
-scheme and identical completions collapse to the first (`dedupe`).
+The mod turns on `abacus`, `unicode-math` and `greek` by default, wider than the
+server's `unicode-math` alone, so short names like `\N` (ℕ), `\all` (∀) and
+`\alpha` (α) work straight after installing. Each row names its scheme, and
+identical completions collapse to the first in `enabledSchemes` order
+(`dedupe`).
 
 ## Notes
 
