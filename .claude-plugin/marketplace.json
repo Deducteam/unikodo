@@ -1,0 +1,12 @@
+{
+  "name": "unikodo",
+  "owner": { "name": "Deducteam" },
+  "description": "unikodo's Claude Code mod: Unicode (math) symbol completions in the prompt box.",
+  "plugins": [
+    {
+      "name": "unikodo",
+      "source": "./editors/claude-code",
+      "description": "Unicode (math) symbol completions in Claude Code's prompt box: type \\leq and take ≤."
+    }
+  ]
+}

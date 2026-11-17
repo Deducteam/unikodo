@@ -1,0 +1,31 @@
+{
+  "name": "unikodo",
+  "version": "0.2.0",
+  "description": "Unicode (math) symbol completions in Claude Code's prompt box: type \\leq and take ≤.",
+  "author": { "name": "Deducteam and unikodo contributors" },
+  "homepage": "https://github.com/Deducteam/unikodo",
+  "repository": "https://github.com/Deducteam/unikodo",
+  "license": "MIT",
+  "keywords": ["unicode", "math", "latex", "completion"],
+  "userConfig": {
+    "enabledSchemes": {
+      "type": "string",
+      "multiple": true,
+      "title": "Enabled schemes",
+      "description": "Which naming schemes to offer, in preference order: unicode-math, greek, latex, typst, abacus, unicode, ascii.",
+      "default": ["unicode-math"]
+    },
+    "includeAscii": {
+      "type": "boolean",
+      "title": "Include ASCII",
+      "description": "Also offer names whose value is a single ASCII character.",
+      "default": false
+    },
+    "dedupe": {
+      "type": "boolean",
+      "title": "Dedupe",
+      "description": "Collapse identical completions (same name and character) from several schemes, keeping the first by enabledSchemes order.",
+      "default": true
+    }
+  }
+}

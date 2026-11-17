@@ -23,12 +23,13 @@ assets must exist before anyone installs.
 
 ## 1. Bump the version
 
-Keep all three in sync (the VS Code client downloads the binary for its own
+Keep all four in sync (the VS Code client downloads the binary for its own
 version, and the release tag must match):
 
 - `Cargo.toml` → `[workspace.package] version`
 - `editors/vscode/package.json` → `version`
 - `editors/zed/extension.toml` → `version`
+- `editors/claude-code/.claude-plugin/plugin.json` → `version`
 
 Commit the bump.
 
@@ -90,7 +91,15 @@ Zed's registry pins each extension as a git submodule.
    Zed's CI builds the wasm and, once merged, the extension appears in
    `zed: extensions`.
 
-## 6. Website
+## 6. Claude Code mod
+
+Nothing to publish: this repository is the mod's marketplace
+(`.claude-plugin/marketplace.json`), so the version bump in step 1 reaching
+`main` is the release. Users get it with `claude plugin update unikodo@unikodo`.
+If a scheme's table changed, `scripts/update-claude-code-symbols.py` must have
+been run (CI fails otherwise).
+
+## 7. Website
 
 The homepage install buttons already point at the Marketplace / Open VSX / Zed
 listings, and the deploy pulls from `main` — no change needed per release. If a

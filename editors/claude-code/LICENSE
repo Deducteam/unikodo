@@ -1,0 +1,32 @@
+MIT License
+
+Copyright (c) 2026 Deducteam and unikodo contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+This repository vendors and derives symbol data from several upstream projects,
+each redistributed under its own license (not the MIT license above):
+
+  - unicode-math (unicode-math-table.tex) — LPPL v1.3c or later
+  - W3C "XML Entity Definitions for Characters" (latex-symbols.tsv) — W3C license
+
+The Typst `sym` data is obtained at build time from the `codex` crate (Apache-2.0)
+and is not vendored here. See `crates/unikodo-core/data/README.md` for details.

@@ -9,7 +9,8 @@ completion to get `≤`; type `\BbbR` to get `ℝ`.
 
 At its core is a small, editor-agnostic **LSP server**. Thin **VSCode** and
 **Zed** extensions drive it, and any LSP-capable editor (Neovim, Emacs, …) can
-use it too.
+use it too. A **Claude Code** mod brings the same completions to Claude Code's
+prompt box.
 
 ## Repository layout
 
@@ -21,7 +22,8 @@ unikodo/
 │   └── unikodo-lsp/     # the `unikodo-lsp` LSP server binary
 ├── editors/
 │   ├── vscode/          # VSCode extension (TypeScript)
-│   └── zed/             # Zed extension (Rust → WebAssembly)
+│   ├── zed/             # Zed extension (Rust → WebAssembly)
+│   └── claude-code/     # Claude Code mod (TypeScript hooks module)
 ├── web/                 # web frontend: showcase + symbol browser (Next.js)
 ├── scripts/             # maintenance scripts
 └── unicode-math-symbols.pdf   # human-readable symbol reference
@@ -103,8 +105,9 @@ Settings reach the server via `initializationOptions`, and live updates via
 
 In **VSCode**, set `unikodo.enabledSchemes` / `unikodo.includeAscii` /
 `unikodo.triggers`. In **Zed**, put them under `lsp.unikodo.initialization_options`
-in your settings. For a raw LSP client, pass them as `initializationOptions` at
-initialize.
+in your settings. In **Claude Code**, set them with
+`/plugin configure unikodo@unikodo` (all but `triggers`). For a raw LSP client,
+pass them as `initializationOptions` at initialize.
 
 ## Build
 
@@ -139,6 +142,13 @@ own build. See [`editors/vscode/README.md`](editors/vscode/README.md).
 Install **Unikodo** from Zed's extensions view (`zed: extensions`); it downloads
 the server for you. See [`editors/zed/README.md`](editors/zed/README.md).
 
+### Claude Code
+
+At a Claude Code prompt, run `/plugin install unikodo --marketplace Deducteam/unikodo`;
+this repository is its marketplace (`.claude-plugin/marketplace.json`). The mod
+carries the symbol database, so there is no server to download. See
+[`editors/claude-code/README.md`](editors/claude-code/README.md).
+
 ### Any LSP client (Neovim, Emacs, …)
 
 Run `unikodo-lsp` over stdio. For example, with Neovim's built-in LSP:
@@ -172,7 +182,7 @@ cargo test -p unikodo-core             # validate (adjust the count test if need
 Early stage. Working today: the scheme-aware symbol database and an LSP server
 serving completions across configurable naming schemes — **unicode-math**,
 **latex**, **typst**, **unicode** (code points), and **ascii** — plus VSCode and
-Zed extension shims. Natural next steps include system-specific semantic-macro
+Zed extension shims and a Claude Code mod. Natural next steps include system-specific semantic-macro
 schemes, description/fuzzy search, and prebuilt server binaries for the
 extensions to download.
 

@@ -33,6 +33,17 @@ jobs:
       - run: npm ci
       - run: npm run compile
 
+  claude-code:
+    name: Claude Code mod (symbol table current)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: scripts/update-claude-code-symbols.py
+      - name: hooks/symbols.ts matches unikodo-core
+        run: git diff --exit-code -- editors/claude-code/hooks/symbols.ts
+
   zed:
     name: Zed extension (wasm)
     runs-on: ubuntu-latest

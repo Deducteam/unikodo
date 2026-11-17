@@ -12,6 +12,9 @@ editors/zed/target/
 editors/zed/*.wasm
 editors/zed/extension.wasm
 
+# Types Claude Code writes beside a mod it loads from this checkout
+editors/claude-code/.claude-plugin/types/
+
 # Local VSCode dev-host profile (scripts/dev-vscode.sh)
 /.dev-vscode/
 
